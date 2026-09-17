@@ -1,0 +1,9 @@
+{
+  "object": "error",
+  "code": "bad_request",
+  "status": 400,
+  "warnings": [
+    "Invalid expression \"frobnicate:yes\" was ignored. Refer to the syntax guide at https://scryfall.com/docs/syntax"
+  ],
+  "details": "All of your terms were ignored."
+}

@@ -1,0 +1,21 @@
+{
+  "object": "list",
+  "total_cards": 2,
+  "has_more": false,
+  "data": [
+    {
+      "object": "card",
+      "id": "c1c2c3c4-0000-4000-8000-000000000003",
+      "name": "Terror",
+      "layout": "normal",
+      "mana_cost": "{1}{B}",
+      "type_line": "Instant",
+      "set": "lea",
+      "collector_number": "18",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/c/1/c1c2c3c4-0000-4000-8000-000000000003.jpg?1559591645",
+        "normal": "https://cards.scryfall.io/normal/front/c/1/c1c2c3c4-0000-4000-8000-000000000003.jpg?1559591645"
+      }
+    }
+  ]
+}

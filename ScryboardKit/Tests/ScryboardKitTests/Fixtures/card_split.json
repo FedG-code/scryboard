@@ -1,0 +1,41 @@
+{
+  "object": "card",
+  "id": "a1b2c3d4-0000-4000-8000-000000000001",
+  "oracle_id": "c1d2e3f4-0000-4000-8000-000000000001",
+  "name": "Fire // Ice",
+  "lang": "en",
+  "released_at": "1999-02-15",
+  "scryfall_uri": "https://scryfall.com/card/apc/128/fire-ice",
+  "layout": "split",
+  "cmc": 4.0,
+  "type_line": "Instant // Instant",
+  "mana_cost": "{1}{R} // {1}{U}",
+  "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/a/1/a1b2c3d4-0000-4000-8000-000000000001.jpg?1562900000",
+    "normal": "https://cards.scryfall.io/normal/front/a/1/a1b2c3d4-0000-4000-8000-000000000001.jpg?1562900000",
+    "large": "https://cards.scryfall.io/large/front/a/1/a1b2c3d4-0000-4000-8000-000000000001.jpg?1562900000",
+    "png": "https://cards.scryfall.io/png/front/a/1/a1b2c3d4-0000-4000-8000-000000000001.png?1562900000",
+    "art_crop": "https://cards.scryfall.io/art_crop/front/a/1/a1b2c3d4-0000-4000-8000-000000000001.jpg?1562900000",
+    "border_crop": "https://cards.scryfall.io/border_crop/front/a/1/a1b2c3d4-0000-4000-8000-000000000001.jpg?1562900000"
+  },
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Fire",
+      "mana_cost": "{1}{R}",
+      "type_line": "Instant",
+      "oracle_text": "Fire deals 2 damage divided as you choose among one or two targets."
+    },
+    {
+      "object": "card_face",
+      "name": "Ice",
+      "mana_cost": "{1}{U}",
+      "type_line": "Instant",
+      "oracle_text": "Tap target permanent.\nDraw a card."
+    }
+  ],
+  "set": "apc",
+  "set_name": "Apocalypse",
+  "collector_number": "128",
+  "rarity": "uncommon"
+}

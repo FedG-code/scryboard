@@ -1,0 +1,46 @@
+{
+  "object": "list",
+  "total_cards": 1287,
+  "has_more": true,
+  "next_page": "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&order=name&page=2&q=otag%3Aremoval&unique=cards",
+  "data": [
+    {
+      "object": "card",
+      "id": "77c6fa74-5543-42ac-9ead-0e890b188e99",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "name": "Lightning Bolt",
+      "layout": "normal",
+      "mana_cost": "{R}",
+      "type_line": "Instant",
+      "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+      "set": "lea",
+      "set_name": "Limited Edition Alpha",
+      "collector_number": "161",
+      "released_at": "1993-08-05",
+      "scryfall_uri": "https://scryfall.com/card/lea/161/lightning-bolt",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/7/7/77c6fa74-5543-42ac-9ead-0e890b188e99.jpg?1559591645",
+        "normal": "https://cards.scryfall.io/normal/front/7/7/77c6fa74-5543-42ac-9ead-0e890b188e99.jpg?1559591645"
+      }
+    },
+    {
+      "object": "card",
+      "id": "b7b2c1d0-0000-4000-8000-000000000002",
+      "oracle_id": "d7b2c1d0-0000-4000-8000-000000000002",
+      "name": "Swords to Plowshares",
+      "layout": "normal",
+      "mana_cost": "{W}",
+      "type_line": "Instant",
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "set": "lea",
+      "set_name": "Limited Edition Alpha",
+      "collector_number": "24",
+      "released_at": "1993-08-05",
+      "scryfall_uri": "https://scryfall.com/card/lea/24/swords-to-plowshares",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/b/7/b7b2c1d0-0000-4000-8000-000000000002.jpg?1559591645",
+        "normal": "https://cards.scryfall.io/normal/front/b/7/b7b2c1d0-0000-4000-8000-000000000002.jpg?1559591645"
+      }
+    }
+  ]
+}

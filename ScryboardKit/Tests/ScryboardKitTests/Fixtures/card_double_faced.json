@@ -1,0 +1,59 @@
+{
+  "object": "card",
+  "id": "0000579f-7b35-4ed3-b44c-db2a538066fe",
+  "oracle_id": "b5a1b7e3-1d0f-4a1f-9a1c-9e0b1c2d3e4f",
+  "name": "Delver of Secrets // Insectile Aberration",
+  "lang": "en",
+  "released_at": "2011-09-30",
+  "scryfall_uri": "https://scryfall.com/card/isd/51/delver-of-secrets-insectile-aberration",
+  "layout": "transform",
+  "highres_image": true,
+  "image_status": "highres_scan",
+  "cmc": 1.0,
+  "type_line": "Creature — Human Wizard // Creature — Human Insect",
+  "colors": ["U"],
+  "color_identity": ["U"],
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Delver of Secrets",
+      "mana_cost": "{U}",
+      "type_line": "Creature — Human Wizard",
+      "oracle_text": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets.",
+      "power": "1",
+      "toughness": "1",
+      "artist": "Nils Hamm",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "large": "https://cards.scryfall.io/large/front/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "png": "https://cards.scryfall.io/png/front/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.png?1562894979",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979"
+      }
+    },
+    {
+      "object": "card_face",
+      "name": "Insectile Aberration",
+      "mana_cost": "",
+      "type_line": "Creature — Human Insect",
+      "oracle_text": "Flying",
+      "power": "3",
+      "toughness": "2",
+      "artist": "Nils Hamm",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/back/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "normal": "https://cards.scryfall.io/normal/back/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "large": "https://cards.scryfall.io/large/back/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "png": "https://cards.scryfall.io/png/back/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.png?1562894979",
+        "art_crop": "https://cards.scryfall.io/art_crop/back/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979",
+        "border_crop": "https://cards.scryfall.io/border_crop/back/0/0/0000579f-7b35-4ed3-b44c-db2a538066fe.jpg?1562894979"
+      }
+    }
+  ],
+  "set": "isd",
+  "set_name": "Innistrad",
+  "collector_number": "51",
+  "rarity": "common",
+  "border_color": "black"
+}
