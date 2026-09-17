@@ -106,8 +106,14 @@ Extension facts to design around:
 
 1. ~~**ScryboardKit package**~~ — **done.** HTTP transport protocol + live URLSession implementation with mandatory headers; card/search/autocomplete/error models incl. `card_faces`; query classification; debounced, cancellable search pipeline; 55 tests across 8 suites with checked-in fixtures, green and warning-free.
 2. **[Xcode] Project skeleton** — container app + extension targets; keyboard selectable in Settings; globe/delete work; ScryboardKit added as a local package dependency to both targets.
-3. **[Xcode] In-keyboard QWERTY + search field** wired to ScryboardKit.
+3. **[Xcode] In-keyboard QWERTY + search field** wired to ScryboardKit. The
+   layout and its state machine already exist in `ScryboardKit/Keyboard/` —
+   `KeyboardLayout` is pure data (relative key widths, three planes) and
+   `KeyboardState.applying(_:)` is the whole rule set. The target only has to
+   render rows and report taps.
 4. **[Xcode] Results grid** with downsampled thumbnails and memory-safe scrolling.
+   `ResultsPager` already owns when to fetch the next page, duplicate
+   suppression and retry; the target supplies the cells and the image decoding.
 5. **[Xcode] Tap-to-copy** with toast; verify paste into WhatsApp and iMessage end-to-end on device. ← the "it works" moment.
 6. **[Xcode] Container app onboarding + attribution screen.**
 7. **Polish** — the logic is done in ScryboardKit; what remains is [Xcode] UI.
