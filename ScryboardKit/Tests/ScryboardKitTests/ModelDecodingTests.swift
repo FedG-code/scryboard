@@ -66,6 +66,12 @@ struct CardDecodingTests {
         #expect(card.imageURIs(forFace: 1) == card.cardFaces?[1].imageURIs)
         #expect(card.imageURIs(forFace: 1)?[.normal]?.path.contains("/back/") == true)
         #expect(card.imageURIs(forFace: 2) == nil)
+
+        // What tap-to-copy uses once the user has flipped the card.
+        #expect(card.imageURL(.normal, face: 0) == card.imageURL(.normal))
+        #expect(card.imageURL(.normal, face: 1)?.path.contains("/back/") == true)
+        #expect(card.imageURL(.small, face: 1)?.path.hasPrefix("/small/back/") == true)
+        #expect(card.imageURL(.normal, face: 2) == nil)
     }
 
     /// Split cards have faces but one shared scan — flipping them is meaningless,
@@ -80,6 +86,8 @@ struct CardDecodingTests {
         #expect(card.hasDistinctFaceImages == false, "no flip affordance for split cards")
         #expect(card.frontImageURIs == card.imageURIs)
         #expect(card.imageURIs(forFace: 1) == card.imageURIs)
+        // Flipping a split card shows the same scan, never nothing.
+        #expect(card.imageURL(.normal, face: 1) == card.imageURL(.normal))
     }
 
     @Test("An unknown layout decodes instead of failing")

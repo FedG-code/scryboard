@@ -88,6 +88,14 @@ public struct Card: Codable, Hashable, Sendable, Identifiable {
         frontImageURIs?[size]
     }
 
+    /// Front- or back-face URL at the requested size.
+    ///
+    /// The flip affordance copies what the user is looking at, so the pasteboard
+    /// write asks for the face currently on screen rather than always the front.
+    public func imageURL(_ size: ImageSize, face index: Int) -> URL? {
+        imageURIs(forFace: index)?[size]
+    }
+
     /// Image set for a given face index, falling back to the card's own images
     /// for layouts whose faces share one scan (split, flip, adventure).
     public func imageURIs(forFace index: Int) -> ImageURIs? {

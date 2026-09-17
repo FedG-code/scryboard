@@ -56,11 +56,46 @@ public struct ScryfallClient: Sendable {
     ///
     /// A query that matches nothing comes back as a 404 ``ScryfallError``, not an
     /// empty page; check ``ScryboardError/isNotFound``.
-    public func search(_ query: String) async throws -> SearchPage {
+    public func search(
+        _ query: String,
+        unique: SearchUniqueness = .cards,
+        order: SearchOrder = .name,
+        direction: SortDirection = .auto
+    ) async throws -> SearchPage {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ScryboardError.invalidURL(query) }
-        let request = try makeRequest(path: "/cards/search", query: [URLQueryItem(name: "q", value: trimmed)])
+        let request = try makeRequest(path: "/cards/search", query: [
+            URLQueryItem(name: "q", value: trimmed),
+            URLQueryItem(name: "unique", value: unique.rawValue),
+            URLQueryItem(name: "order", value: order.rawValue),
+            URLQueryItem(name: "dir", value: direction.rawValue),
+        ])
         return try await perform(request, as: SearchPage.self)
+    }
+
+    /// Every printing of a card, newest first.
+    ///
+    /// Commander players care which art they send, so the picker needs the whole
+    /// print run rather than the one printing a search happened to surface.
+    /// Matched on `oracle_id` — the identifier that is stable across printings —
+    /// falling back to an exact name match for the rare card object that arrives
+    /// without one.
+    public func printings(of card: Card) async throws -> SearchPage {
+        try await search(
+            ScryfallClient.printingsQuery(for: card),
+            unique: .prints,
+            order: .released,
+            direction: .descending
+        )
+    }
+
+    static func printingsQuery(for card: Card) -> String {
+        if let oracleID = card.oracleID {
+            return "oracleid:\(oracleID.uuidString.lowercased())"
+        }
+        // `!"…"` is Scryfall's exact-name operator. Card names never contain a
+        // double quote, so this needs no escaping.
+        return "!\"\(card.name)\""
     }
 
     /// Resolve a single name to a card. A 404 here means "no such card", not a bug.

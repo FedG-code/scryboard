@@ -1,0 +1,61 @@
+{
+  "object": "list",
+  "total_cards": 3,
+  "has_more": false,
+  "data": [
+    {
+      "object": "card",
+      "id": "e3285e6b-3e79-4d7c-bf96-d920f973b122",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "name": "Lightning Bolt",
+      "layout": "normal",
+      "mana_cost": "{R}",
+      "type_line": "Instant",
+      "set": "clb",
+      "set_name": "Commander Legends: Battle for Baldur's Gate",
+      "collector_number": "187",
+      "released_at": "2022-06-10",
+      "artist": "Christopher Moeller",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/e/3/e3285e6b-3e79-4d7c-bf96-d920f973b122.jpg?1673147774",
+        "normal": "https://cards.scryfall.io/normal/front/e/3/e3285e6b-3e79-4d7c-bf96-d920f973b122.jpg?1673147774"
+      }
+    },
+    {
+      "object": "card",
+      "id": "4457ed35-0000-4000-8000-000000000010",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "name": "Lightning Bolt",
+      "layout": "normal",
+      "mana_cost": "{R}",
+      "type_line": "Instant",
+      "set": "2xm",
+      "set_name": "Double Masters",
+      "collector_number": "129",
+      "released_at": "2020-08-07",
+      "artist": "Christopher Moeller",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/4/4/4457ed35-0000-4000-8000-000000000010.jpg?1594736914",
+        "normal": "https://cards.scryfall.io/normal/front/4/4/4457ed35-0000-4000-8000-000000000010.jpg?1594736914"
+      }
+    },
+    {
+      "object": "card",
+      "id": "77c6fa74-5543-42ac-9ead-0e890b188e99",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "name": "Lightning Bolt",
+      "layout": "normal",
+      "mana_cost": "{R}",
+      "type_line": "Instant",
+      "set": "lea",
+      "set_name": "Limited Edition Alpha",
+      "collector_number": "161",
+      "released_at": "1993-08-05",
+      "artist": "Christopher Rush",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/7/7/77c6fa74-5543-42ac-9ead-0e890b188e99.jpg?1559591645",
+        "normal": "https://cards.scryfall.io/normal/front/7/7/77c6fa74-5543-42ac-9ead-0e890b188e99.jpg?1559591645"
+      }
+    }
+  ]
+}

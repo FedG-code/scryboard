@@ -135,21 +135,22 @@ struct SearchPipelineTests {
         #expect(await log.last?.queryValue("q") == "lightning")
     }
 
-    @Test("A Scryfall error is reported, not swallowed")
+    @Test("A malformed query is reported, not swallowed")
     func failuresSurface() async throws {
         let pipeline = makePipeline { request in
-            (try Fixture.data("error_not_found"), .stub(404, for: request))
+            (try Fixture.data("error_bad_request"), .stub(400, for: request))
         }
 
-        await pipeline.submit("otag:frobnicate")
+        await pipeline.submit("frobnicate:yes")
         let outcomes = await pipeline.take(2)
 
         guard case .failure(let error, let query) = outcomes[1] else {
             Issue.record("expected a failure, got \(outcomes[1])")
             return
         }
-        #expect(query == "otag:frobnicate")
-        #expect(error.isNotFound)
+        #expect(query == "frobnicate:yes")
+        #expect(error.scryfallError?.code == "bad_request")
+        #expect(error.isNotFound == false)
     }
 
     @Test("Being offline is reported as a transport failure")
@@ -174,8 +175,54 @@ struct SearchPipelineTests {
         let outcomes = await pipeline.take(2)
 
         #expect(outcomes[0] == .loading(query: "l"))
-        #expect(outcomes[1] == .names([], query: "l"))
+        #expect(outcomes[1] == .empty(query: "l"))
         #expect(await log.count == 0)
+    }
+
+    /// Scryfall answers a search that matched nothing with a 404. Surfacing that
+    /// as a failure would tell the user something went wrong when it did not.
+    @Test("A search that matches nothing is an empty state, not a failure")
+    func noMatchesIsEmptyNotFailure() async throws {
+        let pipeline = makePipeline { request in
+            (try Fixture.data("error_not_found"), .stub(404, for: request))
+        }
+
+        await pipeline.submit("otag:frobnicate")
+        let outcomes = await pipeline.take(2)
+
+        #expect(outcomes[1] == .empty(query: "otag:frobnicate"))
+    }
+
+    @Test("Autocomplete with no suggestions is an empty state")
+    func noSuggestionsIsEmpty() async throws {
+        let pipeline = makePipeline { request in
+            (try Fixture.data("autocomplete_empty"), .stub(200, for: request))
+        }
+
+        await pipeline.submit("zzzzzz")
+        let outcomes = await pipeline.take(2)
+
+        #expect(outcomes[1] == .empty(query: "zzzzzz"))
+    }
+
+    @Test("A page with no cards is an empty state")
+    func emptyPageIsEmpty() async throws {
+        let pipeline = makePipeline { request in
+            (Data(#"{"object":"list","total_cards":0,"has_more":false,"data":[]}"#.utf8),
+             .stub(200, for: request))
+        }
+
+        await pipeline.submit("otag:removal")
+        let outcomes = await pipeline.take(2)
+
+        #expect(outcomes[1] == .empty(query: "otag:removal"))
+    }
+
+    /// An empty result and a broken connection must not look the same to the UI.
+    @Test("Empty and offline are distinguishable")
+    func emptyIsNotOffline() async throws {
+        #expect(SearchOutcome.empty(query: "x").query == "x")
+        #expect(SearchOutcome.empty(query: "x") != .failure(.transport(.offline, message: ""), query: "x"))
     }
 
     @Test("finish() closes the stream")

@@ -9,6 +9,10 @@ public enum SearchOutcome: Sendable, Hashable {
     case idle
     /// Debounce elapsed, request in flight. Show a spinner.
     case loading(query: String)
+    /// The query was valid and Scryfall had nothing for it. An empty state, not
+    /// an error — Scryfall reports a search that matched nothing as a 404, and
+    /// showing that to the user as a failure would be wrong.
+    case empty(query: String)
     /// Name suggestions from `/cards/autocomplete`.
     case names([String], query: String)
     /// A page of cards from `/cards/search`.
@@ -20,7 +24,7 @@ public enum SearchOutcome: Sendable, Hashable {
     public var query: String? {
         switch self {
         case .idle: nil
-        case .loading(let query), .names(_, let query),
+        case .loading(let query), .empty(let query), .names(_, let query),
              .cards(_, let query), .failure(_, let query): query
         }
     }
@@ -112,10 +116,14 @@ public actor SearchPipeline {
                 switch kind {
                 case .autocomplete:
                     let names = try await client.autocomplete(trimmed)
-                    outcome = .names(names, query: trimmed)
+                    outcome = names.isEmpty
+                        ? .empty(query: trimmed)
+                        : .names(names, query: trimmed)
                 case .search:
                     let page = try await client.search(trimmed)
-                    outcome = .cards(page, query: trimmed)
+                    outcome = page.data.isEmpty
+                        ? .empty(query: trimmed)
+                        : .cards(page, query: trimmed)
                 }
 
                 try Task.checkCancellation()
@@ -124,7 +132,13 @@ public actor SearchPipeline {
                 // Superseded by a newer query. Say nothing.
             } catch let error as ScryboardError {
                 guard !Task.isCancelled else { return }
-                continuation.yield(.failure(error, query: trimmed))
+                // "Nothing matched" arrives as a 404. That is an empty result,
+                // not something to apologise for.
+                continuation.yield(
+                    error.isNotFound
+                        ? .empty(query: trimmed)
+                        : .failure(error, query: trimmed)
+                )
             } catch {
                 guard !Task.isCancelled else { return }
                 continuation.yield(

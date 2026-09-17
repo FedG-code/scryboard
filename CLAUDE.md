@@ -110,7 +110,15 @@ Extension facts to design around:
 4. **[Xcode] Results grid** with downsampled thumbnails and memory-safe scrolling.
 5. **[Xcode] Tap-to-copy** with toast; verify paste into WhatsApp and iMessage end-to-end on device. ← the "it works" moment.
 6. **[Xcode] Container app onboarding + attribution screen.**
-7. **Polish:** double-faced card flip, printing selection (Commander players care which art), error/empty/offline states.
+7. **Polish** — the logic is done in ScryboardKit; what remains is [Xcode] UI.
+   - ~~printing selection~~ — `ScryfallClient.printings(of:)`, matched on
+     `oracle_id` with an exact-name fallback, newest printing first.
+   - ~~error/empty/offline states~~ — `SearchOutcome` separates `.empty` from
+     `.failure` (Scryfall reports "nothing matched" as a 404, which must not read
+     as an error), and `TransportFailure` separates offline from timed out.
+   - double-faced card flip — model side done (`Card.hasDistinctFaceImages`
+     gates the affordance, `imageURL(_:face:)` feeds both the grid and the
+     pasteboard write); the flip control itself is [Xcode].
 8. **android/** — Kotlin port of ScryboardKit against the milestone-1 test spec; IME with Commit Content API (true image insertion, no pasteboard).
 
 ## [Xcode] Handoff list — do these on the Mac mini
