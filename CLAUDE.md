@@ -4,14 +4,46 @@ An iOS custom keyboard for searching Magic: The Gathering cards and sending thei
 
 **UX model:** the Tenor GIF keyboard. Search bar at the top of the keyboard, results as a scrollable grid of card thumbnails, tap a card → full image is copied to the clipboard → user long-presses and pastes into the chat. A brief "Copied — tap and hold to paste" toast confirms the copy.
 
-## Current environment constraint (read first)
+## Which machine is this? (read first)
 
-Development happens on two machines:
+Development happens on two machines and the rules differ. Detect it, do not assume
+it — this file is checked out on both:
 
-- **Work Mac (current):** Swift toolchain and CLI only — Command Line Tools, no Xcode. **Do not create, open, or modify any Xcode project, workspace, or `.pbxproj` file, and do not touch code signing.** All work here is confined to the `ScryboardKit/` Swift package: `swift build` and `swift test --disable-xctest` from `ScryboardKit/`. Push as far as possible here; everything that genuinely needs Xcode goes in the handoff list below.
-- **Personal Mac mini (later):** Xcode work happens here — app/extension targets, signing, device testing. Milestones marked [Xcode] are blocked until then.
+```sh
+xcode-select -p
+```
 
-If asked to do [Xcode] work while the constraint above is in effect, stop and say so instead of improvising.
+- **`/Library/Developer/CommandLineTools` — the work Mac.** Swift CLI only, no
+  Xcode. **Do not create, open, or modify any Xcode project, workspace, or
+  `.pbxproj` file, and do not touch code signing.** Work is confined to the
+  `ScryboardKit/` Swift package: `swift build` and `swift test --disable-xctest`
+  from `ScryboardKit/`. Get as far as possible here and put anything that
+  genuinely needs Xcode on the handoff list below rather than improvising.
+- **`/Applications/Xcode.app/…` — the Mac mini.** [Xcode] milestones are
+  unblocked: app and extension targets, signing, device testing. Work through the
+  handoff list before starting milestone 2 — the first item changes how the tests
+  are run.
+
+## State of play
+
+Last updated 2026-09-20, at the end of the work that could be done without Xcode.
+
+- **Done:** milestone 1 in full; milestone 7's non-UI parts; UIKit-free groundwork
+  for milestones 3 and 4.
+- **Green:** 89 tests across 12 suites, no warnings, Swift 6 language mode.
+  `cd ScryboardKit && swift test --disable-xctest` on the work Mac; plain
+  `swift test` on the Mac mini once the handoff list's first item is done.
+- **Next:** the handoff list, then milestone 2.
+- **Where the logic already lives**, so the Xcode targets render and nothing more:
+
+  | Need | Already in ScryboardKit |
+  | --- | --- |
+  | Search bar routing | `classify(_:)`, `SearchPipeline` (debounce + cancel) |
+  | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)` |
+  | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry) |
+  | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)` |
+  | Printing picker | `ScryfallClient.printings(of:)` |
+  | Empty / error / offline | `SearchOutcome.empty` vs `.failure`, `TransportFailure` |
 
 ## Core decisions (settled — do not revisit without asking)
 
@@ -31,10 +63,18 @@ scryboard/
 ├── README.md              (public-facing; contains the attribution block)
 ├── LICENSE                (GPL-3.0)
 ├── .gitignore
-├── ScryboardKit/          (SwiftPM package: Scryfall client + image cache; no UIKit)
+├── ScryboardKit/          (SwiftPM package: Scryfall client + UI logic; no UIKit)
 │   ├── Package.swift
 │   ├── Sources/ScryboardKit/
-│   └── Tests/ScryboardKitTests/
+│   │   ├── HTTPTransport.swift      (protocol + URLSessionTransport)
+│   │   ├── ScryfallClient.swift     (autocomplete, search, named, paging, printings)
+│   │   ├── QueryClassifier.swift    (classify(_:))
+│   │   ├── SearchPipeline.swift     (debounce, cancel, SearchOutcome stream)
+│   │   ├── ResultsPager.swift       (grid paging: prefetch, dedupe, retry)
+│   │   ├── Keyboard/                (KeyboardLayout, KeyboardState — pure data)
+│   │   └── Models/                  (Card, CardFace, ImageURIs, Layout, SearchPage,
+│   │                                 SearchOptions, ScryfallError)
+│   └── Tests/ScryboardKitTests/     (+ Fixtures/, checked-in Scryfall JSON)
 ├── ios/                   [Xcode] created later on the personal machine
 │   └── Scryboard.xcodeproj
 │       ├── Scryboard/            (container app target)
@@ -129,16 +169,19 @@ Extension facts to design around:
 
 ## [Xcode] Handoff list — do these on the Mac mini
 
-Everything deferred or worked around because this machine has no Xcode. Work
+Everything deferred or worked around because the work Mac has no Xcode. Work
 through it before starting milestone 2.
 
-1. **Delete the swift-testing dependency from `ScryboardKit/Package.swift`** — the
-   `dependencies:` block and the matching `.product(name: "Testing", …)` line in
-   the test target. Command Line Tools ship neither XCTest nor Swift Testing, so
-   the suite had nothing to link against here; Xcode bundles its own copy and the
-   two collide. Once it is gone, plain `swift test` works and the project is back
-   to zero dependencies. The test source needs no changes — it is already written
-   against Swift Testing.
+1. **Delete the swift-testing dependency — do this first.** Command Line Tools
+   ship neither XCTest nor Swift Testing, so on the work Mac the suite had nothing
+   to link against and the library is pinned as a test-only dependency. Xcode
+   bundles its own copy and the two collide. In `ScryboardKit/Package.swift`
+   remove the whole `dependencies:` array and, in the test target, the
+   `.product(name: "Testing", package: "swift-testing"),` line; then delete
+   `ScryboardKit/Package.resolved`. The test sources need no changes — they are
+   already written against Swift Testing. Verify with plain `swift test` from
+   `ScryboardKit/`: 89 tests across 12 suites, no warnings. The project is then
+   back to zero dependencies, as the conventions require.
 
 2. **Re-verify `SearchPipeline.liveSleeper`.** The live debounce is a stored
    `static let` rather than an inline `sleep:` default argument, because an
@@ -161,9 +204,14 @@ through it before starting milestone 2.
 
 5. **Milestones 2–6** as listed above — targets, signing, device testing.
 
+When an item is done, delete it from this list rather than marking it; the list is
+meant to empty out.
+
 ## Conventions
 
 - Swift, latest stable toolchain; strict concurrency. UIKit in the extension.
 - No third-party dependencies without explicit discussion (the memory ceiling is the reason).
 - ScryboardKit stays Foundation-only; anything importing UIKit belongs in the app targets.
-- Commits keep the suite green: `swift test --disable-xctest` from `ScryboardKit/` (see the handoff list for why the flag is needed).
+- Commits keep the suite green. `swift test --disable-xctest` from `ScryboardKit/`
+  on the work Mac; plain `swift test` on the Mac mini once the swift-testing
+  dependency is gone (handoff list, item 1).
