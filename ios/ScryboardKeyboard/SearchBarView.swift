@@ -87,7 +87,9 @@ final class SearchBarView: UIView {
 
     private func refresh() {
         let empty = query.isEmpty
-        label.text = empty ? "Search cards" : query
+        // The placeholder shows only while the bar is idle. Once the user is
+        // typing, an empty bar is an empty bar with the caret at its start.
+        label.text = empty && !isEditing ? "Search cards" : query
         label.textColor = empty ? .placeholderText : .label
         caret.isHidden = !isEditing
         clearButton.isHidden = empty
