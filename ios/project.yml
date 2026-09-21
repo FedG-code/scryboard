@@ -1,0 +1,82 @@
+# Source of truth for ios/Scryboard.xcodeproj. Regenerate with:
+#   cd ios && xcodegen generate
+# The generated project is gitignored; never hand-edit it.
+name: Scryboard
+
+options:
+  bundleIdPrefix: com.fedg
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  ScryboardKit:
+    path: ../ScryboardKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # DEVELOPMENT_TEAM is deliberately absent: set it locally in Xcode, never commit it.
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  Scryboard:
+    type: application
+    platform: iOS
+    sources: [Scryboard]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fedg.scryboard
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    info:
+      path: Scryboard/Info.plist
+      properties:
+        CFBundleDisplayName: Scryboard
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+    dependencies:
+      - package: ScryboardKit
+      - target: ScryboardKeyboard
+        embed: true
+
+  ScryboardKeyboard:
+    type: app-extension
+    platform: iOS
+    sources: [ScryboardKeyboard]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fedg.scryboard.keyboard
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: ScryboardKeyboard/Info.plist
+      properties:
+        CFBundleDisplayName: Scryboard
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.keyboard-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).KeyboardViewController
+          NSExtensionAttributes:
+            IsASCIICapable: false
+            PrefersRightToLeft: false
+            PrimaryLanguage: en-US
+            # Network access needs Full Access. Onboarding explains the prompt.
+            RequestsOpenAccess: true
+    dependencies:
+      - package: ScryboardKit
+
+schemes:
+  Scryboard:
+    build:
+      targets:
+        Scryboard: all
+        ScryboardKeyboard: all
+    run:
+      config: Debug
+    archive:
+      config: Release
