@@ -26,6 +26,10 @@ something it can show, not what it is.
   so the grid shows every printing of that card — that *is* the printing picker.
 - **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied — tap and
   hold to paste". The grid stays put; the card joins recents.
+- **Hold a card → every printing of it**, newest first, in the same grid. That
+  is the printing picker; tapping a suggested name does the same.
+- `screenshots/` at the repo root is gitignored: keep local screenshots there,
+  never in the repo.
 - **No Full Access → no network.** `hasFullAccess == false` replaces the grid
   with a short "turn on Full Access in Settings" explainer. Nothing else works
   without it, so nothing else is shown.

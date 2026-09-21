@@ -128,6 +128,7 @@ final class KeyboardViewController: UIInputViewController {
         }
 
         resultsView.onSelect = { [weak self] card in self?.copy(card) }
+        resultsView.onLongPress = { [weak self] card in self?.showPrintings(of: card) }
         resultsView.onCardAppeared = { [weak self] index in
             guard let self, let pager else { return }
             Task { [weak self] in
@@ -238,6 +239,15 @@ final class KeyboardViewController: UIInputViewController {
         searchBar.query = ""
         suggestionStrip.show([])
         Task { await pipeline.cancel() }
+    }
+
+    /// Every printing of a card, newest first. Commander players care which
+    /// art they send. Reached by holding a card, or tapping a suggested name.
+    private func showPrintings(of card: Card) {
+        query = card.name
+        searchBar.query = card.name
+        toast.show("All printings of \(card.name)")
+        Task { await pipeline.searchExact(name: card.name) }
     }
 
     // MARK: - Empty state

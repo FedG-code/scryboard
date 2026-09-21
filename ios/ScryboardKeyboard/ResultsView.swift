@@ -13,6 +13,8 @@ final class ResultsView: UIView {
     }
 
     var onSelect: ((Card) -> Void)?
+    /// A held card. Tap copies; hold shows every printing.
+    var onLongPress: ((Card) -> Void)?
     /// Called as cells come on screen, so the owner can page in more results.
     var onCardAppeared: ((Int) -> Void)?
 
@@ -55,6 +57,10 @@ final class ResultsView: UIView {
         collection.translatesAutoresizingMaskIntoConstraints = false
         addSubview(collection)
 
+        let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
+        hold.minimumPressDuration = 0.4
+        collection.addGestureRecognizer(hold)
+
         statusLabel.font = .preferredFont(forTextStyle: .subheadline)
         statusLabel.textColor = .secondaryLabel
         statusLabel.textAlignment = .center
@@ -81,6 +87,13 @@ final class ResultsView: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    @objc private func held(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began,
+              let indexPath = collection.indexPathForItem(at: gesture.location(in: collection))
+        else { return }
+        onLongPress?(cards[indexPath.item])
+    }
 
     func show(_ status: Status) {
         switch status {
