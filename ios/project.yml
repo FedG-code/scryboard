@@ -9,6 +9,13 @@ options:
     iOS: "16.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
+  disabledValidations: [missingConfigFiles]
+
+# Local.xcconfig is gitignored and holds DEVELOPMENT_TEAM, so a regeneration
+# never wipes the team chosen in Xcode. Copy Local.xcconfig.example to start.
+configFiles:
+  Debug: Local.xcconfig
+  Release: Local.xcconfig
 
 packages:
   ScryboardKit:
