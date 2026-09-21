@@ -9,16 +9,30 @@ let package = Package(
     ],
     products: [
         .library(name: "ScryboardKit", targets: ["ScryboardKit"]),
+        .library(name: "ScryboardUI", targets: ["ScryboardUI"]),
     ],
     targets: [
+        // Foundation only. Portable to Kotlin.
         .target(
             name: "ScryboardKit",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // ImageIO and friends: image fetching, downsampling and caching, shared
+        // by the container app and the keyboard extension.
+        .target(
+            name: "ScryboardUI",
+            dependencies: ["ScryboardKit"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
             name: "ScryboardKitTests",
             dependencies: ["ScryboardKit"],
             resources: [.copy("Fixtures")],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "ScryboardUITests",
+            dependencies: ["ScryboardUI"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]

@@ -6,9 +6,17 @@ import ScryboardKit
 /// attribution screen. The attribution text is already here because it is
 /// non-negotiable and must never be absent from a build.
 struct ContentView: View {
+    @State private var scratch = ""
+    @FocusState private var scratchFocused: Bool
+
     var body: some View {
         NavigationStack {
             List {
+                Section("Try it") {
+                    TextField("Tap here, then switch to Scryboard with the globe key", text: $scratch, axis: .vertical)
+                        .focused($scratchFocused)
+                        .lineLimit(3...6)
+                }
                 Section("Set up") {
                     Label("Settings › General › Keyboard › Keyboards › Add New Keyboard › Scryboard", systemImage: "keyboard")
                     Label("Then open Scryboard in that list and turn on Allow Full Access so it can reach Scryfall.", systemImage: "network")
@@ -20,6 +28,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Scryboard")
+            .onAppear { scratchFocused = true }
         }
     }
 }

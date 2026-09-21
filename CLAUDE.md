@@ -65,12 +65,18 @@ xcode-select -p
 
 Last updated 2026-09-21.
 
-- **Done:** milestone 1 in full; milestone 7's non-UI parts; UIKit-free groundwork
-  for milestones 3 and 4; the swift-testing dependency is gone (zero dependencies);
-  milestone 2 skeleton (`ios/`).
-- **Green:** 89 tests across 12 suites, no warnings, Swift 6 language mode,
+- **Done:** milestones 1–5 in code. Milestone 2 verified on an iPad; milestone 3
+  verified in the simulator; milestones 4 and 5 (image grid, tap-to-copy) are
+  built and awaiting a simulator/device check.
+- **Green:** 99 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
-- **Next:** milestone 3.
+- **Next:** verify 4 and 5 on device (paste into WhatsApp and iMessage), then
+  milestone 6.
+- **iOS 26 facts learned the hard way:** a height constraint on the root view is
+  ignored after the first layout, so the extension uses `allowsSelfSizing` with
+  the height on its own content column. The system draws its own globe and
+  dictation keys under third-party keyboards (`needsInputModeSwitchKey` is
+  false), so ours are hidden when that is the case.
 - **Where the logic already lives**, so the Xcode targets render and nothing more:
 
   | Need | Already in ScryboardKit |
@@ -195,14 +201,16 @@ Extension facts to design around:
 2. ~~**Project skeleton**~~ — done. `ios/project.yml`, both targets build for the
    simulator, extension has globe and delete. Still to verify on a device: the
    keyboard appears in Settings and can be selected.
-3. **Grid mode ↔ typing mode.** Search-bar pill, mode switch with height change,
-   QWERTY rendered from `KeyboardLayout` and driven by `KeyboardState`, suggestion
-   strip, and the pipeline change so plain text also yields `.cards`.
-4. **Results grid** in `ScryboardUI`: downsampled thumbnails, `NSCache`, disk
-   cache, memory-safe scrolling on top of `ResultsPager`. Default search and
-   recents for the empty state. No-Full-Access explainer.
-5. **Tap-to-copy** with toast; recents persistence; verify paste into WhatsApp and
-   iMessage end-to-end on device. ← the "it works" moment.
+3. ~~**Grid mode ↔ typing mode.**~~ — done. `SearchPipeline` now has `typed(_:)`
+   for keystrokes (suggestions only) and `search(_:)` / `searchExact(name:)` for
+   commits.
+4. ~~**Results grid**~~ — done in code. `ScryboardUI` (`ImageDownsampler`,
+   `ImageStore`) + `ResultsView`/`CardCell` in the extension; paging via
+   `ResultsPager`; empty state = recents (`RecentCards`) or the most popular
+   cards (`game:paper` by EDHREC rank).
+5. **Tap-to-copy** — done in code (`ImageStore.imageData` → `UIPasteboard`,
+   `ToastView`). Still to verify: paste into WhatsApp and iMessage on a device.
+   ← the "it works" moment.
 6. **Container app onboarding + attribution screen.**
 7. **Polish** — double-faced flip control (model side done: `Card.hasDistinctFaceImages`,
    `imageURL(_:face:)`); error and offline states rendered (`SearchOutcome`,
@@ -224,7 +232,14 @@ Extension facts to design around:
    chosen on reasoning rather than measurement. Revisit in milestone 4 alongside
    the image cache.
 
-3. **Bundle identifiers** are placeholders (`com.fedg.scryboard`,
+3. **UI tests (`ios/ScryboardUITests`) are a work in progress.**
+   `EnableKeyboardTests` adds the keyboard through the simulator's Settings app
+   (there is no command-line way to enable a third-party keyboard) but its Full
+   Access step is not yet reliable; `KeyboardSmokeTests` has not passed yet.
+   They are not part of `swift test`. Run by hand with
+   `xcodebuild test -only-testing:ScryboardUITests/EnableKeyboardTests`.
+
+4. **Bundle identifiers** are placeholders (`com.fedg.scryboard`,
    `com.fedg.scryboard.keyboard`) until an App ID is registered.
 
 When an item is done, delete it from this list rather than marking it; the list is
