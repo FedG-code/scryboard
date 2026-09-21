@@ -69,29 +69,54 @@ xcode-select -p
 
 ## State of play
 
-Last updated 2026-09-21.
+Last updated 2026-09-21, end of the first Xcode session.
 
-- **Done:** milestones 1–5 in code. Milestone 2 verified on an iPad; milestone 3
-  verified in the simulator; milestones 4 and 5 (image grid, tap-to-copy) are
-  built and awaiting a simulator/device check.
+- **Done:** milestones 1–5 in code. Milestones 2 and 3 verified on an iPad and in
+  the simulator. Milestones 4 and 5 (image grid, hold-for-printings, tap-to-copy)
+  are built and were seen working in the simulator; the paste itself is not yet
+  verified on hardware because the simulator's clipboard bridge is unreliable
+  for images.
+- **TestFlight:** build 1.0 (1) uploaded 2026-09-21; the developer was about to
+  add themself as an internal tester and install on their iPhone. See
+  "Distribution".
 - **Green:** 99 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
-- **Next:** verify 4 and 5 on device (paste into WhatsApp and iMessage), then
-  milestone 6.
+- **Next, in order:**
+  1. Confirm paste into WhatsApp and iMessage on the iPhone (milestone 5's
+     "it works" moment). Fix whatever that turns up.
+  2. Milestone 6: container app onboarding (enable keyboard, Full Access and
+     why the system warning is scary, the one-time paste permission) and the
+     attribution screen. The bones exist in `ios/Scryboard/ContentView.swift`.
+  3. Milestone 7 polish: double-faced flip, designed empty/offline/error states,
+     sharper thumbnails on iPad (small scan is stretched there), Instruments
+     memory pass against the extension ceiling, dark mode and landscape.
+  4. Real app icon (original artwork, no card imagery); the current one is a
+     flat placeholder made in code. Then the store listing.
+  5. Finish or delete `ios/ScryboardUITests` (see Open items).
 - **iOS 26 facts learned the hard way:** a height constraint on the root view is
   ignored after the first layout, so the extension uses `allowsSelfSizing` with
   the height on its own content column. The system draws its own globe and
   dictation keys under third-party keyboards (`needsInputModeSwitchKey` is
   false), so ours are hidden when that is the case.
+- **Simulator tips:** press ⌘⇧K in the simulator to toggle the software keyboard
+  (a connected hardware keyboard hides every software keyboard, ours included).
+  Third-party keyboards cannot be enabled from the command line; add Scryboard
+  in the simulator's Settings app after each reinstall. iOS 26 hosts the
+  simulator in a process called DeviceHub, not Simulator.app.
+- **Working style that suits the developer:** they are new to Xcode and test on
+  a real device or the simulator themselves. Give short, numbered GUI steps.
+  Do not spend long stretches on automation detours (the UI-test harness cost
+  twenty minutes with nothing visible); ask them to try it and report instead.
+  Never `rm` with globs in shared folders; write to fresh per-run directories.
 - **Where the logic already lives**, so the Xcode targets render and nothing more:
 
-  | Need | Already in ScryboardKit |
+  | Need | Already in ScryboardKit / ScryboardUI |
   | --- | --- |
-  | Search bar routing | `classify(_:)`, `SearchPipeline` (debounce + cancel) |
+  | Search bar routing | `SearchPipeline.typed(_:)` (suggestions), `.search(_:)`, `.searchExact(name:)` |
   | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)` |
   | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry) |
-  | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)` |
-  | Printing picker | `ScryfallClient.printings(of:)` |
+  | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |
+  | Printing picker | `searchExact(name:)` fills the grid with every printing |
   | Empty / error / offline | `SearchOutcome.empty` vs `.failure`, `TransportFailure` |
 
 ## Core decisions (settled — do not revisit without asking)
@@ -152,10 +177,13 @@ xcodebuild -project Scryboard.xcodeproj -scheme Scryboard \
 
 ## Distribution (TestFlight)
 
-First upload went out 2026-09-21 as 1.0 (1). The paid team ID lives in
-`ios/Local.xcconfig` (gitignored). The App Store Connect record for
-`com.fedg.scryboard` exists. Uploads run from the command line with Xcode's
-signed-in account; no API key is involved yet.
+First upload went out 2026-09-21 as 1.0 (1). The paid team ID lives only in
+`ios/Local.xcconfig` (gitignored); if `-exportArchive` ever asks for a team,
+add a `teamID` key to a *local copy* of `ExportOptions.plist`, never to the
+committed one. The App Store Connect record for `com.fedg.scryboard` exists.
+Uploads run from the command line with Xcode's signed-in Apple ID; no API key
+is involved yet. Nothing here publishes: builds land in TestFlight only, and the
+App Store release is a separate, manual submission.
 
 ```sh
 cd ios
@@ -268,8 +296,9 @@ Extension facts to design around:
    They are not part of `swift test`. Run by hand with
    `xcodebuild test -only-testing:ScryboardUITests/EnableKeyboardTests`.
 
-4. **Bundle identifiers** are placeholders (`com.fedg.scryboard`,
-   `com.fedg.scryboard.keyboard`) until an App ID is registered.
+4. **Simulator UI-test setup is stateful.** The iPhone 17 simulator on the Mac
+   mini already has Scryboard enabled (via `EnableKeyboardTests`); a fresh
+   simulator needs that test run once.
 
 When an item is done, delete it from this list rather than marking it; the list is
 meant to empty out.
