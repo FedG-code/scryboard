@@ -9,9 +9,10 @@ search bar bolted on. The extension is a **card browser first**; the QWERTY is
 something it can show, not what it is.
 
 - **Grid mode is the default.** Opening the keyboard shows a search-bar pill
-  across the top, a scrollable grid of card thumbnails, and a slim toolbar with
-  the globe key and a delete key that acts on the host app's text (exactly like
-  the emoji keyboard's delete). With nothing typed the grid shows the user's
+  across the top and a scrollable grid of card thumbnails, nothing else. No
+  delete key in this mode: there is nothing to delete from, and the strip only
+  cost grid space. A globe appears under the grid only on systems that do not
+  draw their own (`needsInputModeSwitchKey`). With nothing typed the grid shows the user's
   **recently copied cards**; on a fresh install, before anything has been copied,
   it shows a fixed **default search** (newest set, `order:released`).
 - **Tapping the search bar switches to typing mode.** The grid gives way to the
@@ -179,7 +180,7 @@ Single Xcode project, two targets, both depending on the local `ScryboardKit` pa
 
 Extension facts to design around:
 
-- Globe and delete keys are required in every mode. In grid mode they live in the toolbar; in typing mode they are part of `KeyboardLayout`.
+- A globe key is required wherever the system does not draw one (`needsInputModeSwitchKey`). In grid mode it is a lone button under the grid; in typing mode it is part of `KeyboardLayout`. Delete exists only in typing mode, where it edits the query.
 - `RequestsOpenAccess` = YES in the extension Info.plist (network access requires Full Access).
 - Hard memory ceiling (~60–80 MB); iOS kills the extension silently when exceeded. Downsample thumbnails at decode time via `CGImageSourceCreateThumbnailAtIndex`; `NSCache` with a count limit; never retain the full-size JPEG beyond the pasteboard write; zero third-party dependencies.
 - The extension sets its own height with a constraint on `inputView`. Grid mode may be taller than typing mode; animate the change.

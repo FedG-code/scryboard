@@ -113,10 +113,9 @@ final class KeyboardViewController: UIInputViewController {
 
         // iOS 26 draws its own globe under third-party keyboards; older
         // systems expect the keyboard to provide one.
-        browseToolbar.globeButton.isHidden = !needsInputModeSwitchKey
+        browseToolbar.isHidden = !needsInputModeSwitchKey
         keyboardView.showsGlobeKey = needsInputModeSwitchKey
         browseToolbar.globeButton.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
-        browseToolbar.deleteButton.addTarget(self, action: #selector(deleteInHost), for: .touchUpInside)
 
         suggestionStrip.onSelect = { [weak self] name in self?.chooseSuggestion(name) }
 
@@ -273,10 +272,6 @@ final class KeyboardViewController: UIInputViewController {
                 self?.toast.show("Couldn’t copy. Check your connection.")
             }
         }
-    }
-
-    @objc private func deleteInHost() {
-        textDocumentProxy.deleteBackward()
     }
 
     // MARK: - Outcomes

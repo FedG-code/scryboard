@@ -1,35 +1,26 @@
 import UIKit
 
-/// The strip under the grid: the two keys Apple requires, available even when
-/// the QWERTY is hidden. Delete here acts on the host app's text, exactly as
-/// the emoji keyboard's delete does.
+/// A globe under the grid, for systems that expect the keyboard to provide
+/// one (`needsInputModeSwitchKey`). iOS 26 draws its own and this strip is
+/// hidden, so the grid gets the room. No delete key: in browsing mode there is
+/// nothing to delete from, and the host app's text is not the keyboard's job.
 final class BrowseToolbarView: UIView {
     let globeButton = UIButton(configuration: .gray())
-    let deleteButton = UIButton(configuration: .gray())
 
     override init(frame: CGRect) {
         super.init(frame: frame)
 
         globeButton.configuration?.image = UIImage(systemName: "globe")
+        globeButton.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20)
+        globeButton.configuration?.baseForegroundColor = .label
         globeButton.accessibilityLabel = "Next keyboard"
-        deleteButton.configuration?.image = UIImage(systemName: "delete.left")
-        deleteButton.accessibilityLabel = "Delete"
-        for button in [globeButton, deleteButton] {
-            button.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
-            button.configuration?.baseForegroundColor = .label
-        }
-
-        let row = UIStackView(arrangedSubviews: [globeButton, UIView(), deleteButton])
-        row.axis = .horizontal
-        row.alignment = .center
-        row.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(row)
+        globeButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(globeButton)
 
         NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            globeButton.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            globeButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+            globeButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
         ])
     }
 
