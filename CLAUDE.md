@@ -24,8 +24,9 @@ something it can show, not what it is.
 - **Search key, or tapping a suggestion, returns to grid mode** with results.
   Tapping a suggestion runs an exact-name search (`!"Name"`, `unique=prints`)
   so the grid shows every printing of that card — that *is* the printing picker.
-- **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied — tap and
-  hold to paste". The grid stays put; the card joins recents.
+- **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied". Just that
+  word: the longer "tap and hold to paste" read as an instruction for the
+  keyboard itself and confused. The grid stays put; the card joins recents.
 - **Hold a card → every printing of it**, newest first, in the same grid. That
   is the printing picker; tapping a suggested name does the same.
 - `screenshots/` at the repo root is gitignored: keep local screenshots there,

@@ -277,7 +277,7 @@ final class KeyboardViewController: UIInputViewController {
                 guard !Task.isCancelled else { return }
                 UIPasteboard.general.setData(data, forPasteboardType: UTType.jpeg.identifier)
                 RecentCards.remember(card)
-                self?.toast.show("Copied — tap and hold to paste")
+                self?.toast.show("Copied")
             } catch {
                 self?.toast.show("Couldn’t copy. Check your connection.")
             }
