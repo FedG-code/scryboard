@@ -150,6 +150,29 @@ xcodebuild -project Scryboard.xcodeproj -scheme Scryboard \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
+## Distribution (TestFlight)
+
+First upload went out 2026-09-21 as 1.0 (1). The paid team ID lives in
+`ios/Local.xcconfig` (gitignored). The App Store Connect record for
+`com.fedg.scryboard` exists. Uploads run from the command line with Xcode's
+signed-in account; no API key is involved yet.
+
+```sh
+cd ios
+xcodebuild archive -project Scryboard.xcodeproj -scheme Scryboard -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath /tmp/Scryboard.xcarchive -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath /tmp/Scryboard.xcarchive -exportOptionsPlist ExportOptions.plist \
+  -exportPath /tmp/export -allowProvisioningUpdates
+```
+
+`ios/ExportOptions.plist` uses `method: app-store-connect`, `destination: upload`
+and `manageAppVersionAndBuildNumber: true`, so build numbers are bumped by
+Apple's tooling and never need editing. Validation facts learned: a build needs
+an app icon (placeholder in `Assets.xcassets`), privacy manifests in both
+targets (UserDefaults, reason CA92.1), and `UISupportedInterfaceOrientations`
+written into the explicit Info.plist — `INFOPLIST_KEY_*` build settings are
+ignored when the plist is a file.
+
 ## ScryboardKit design
 
 ### Scryfall API contract
