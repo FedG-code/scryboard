@@ -63,6 +63,9 @@ final class SearchBarView: UIView {
         row.axis = .horizontal
         row.alignment = .center
         row.spacing = 6
+        // The caret hugs the last letter; the stack's spacing would leave a
+        // visible gap before it.
+        row.setCustomSpacing(1, after: label)
         row.translatesAutoresizingMaskIntoConstraints = false
         pill.addSubview(row)
 

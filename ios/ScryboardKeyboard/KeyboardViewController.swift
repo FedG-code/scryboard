@@ -4,9 +4,9 @@ import ScryboardKit
 import ScryboardUI
 
 /// The keyboard. Opens in browsing mode — search-bar pill, results, a slim
-/// toolbar with globe and delete — and switches to typing mode, where the
-/// results give way to the QWERTY and a suggestion strip, when the bar is
-/// tapped. Search, or a tapped suggestion, brings the results back.
+/// toolbar with a globe where the system draws none — and switches to typing
+/// mode, where the results give way to the QWERTY, when the bar is tapped.
+/// The return key brings the results back.
 final class KeyboardViewController: UIInputViewController {
     private enum Mode {
         case browsing
@@ -16,7 +16,6 @@ final class KeyboardViewController: UIInputViewController {
     private let searchBar = SearchBarView()
     private let resultsView = ResultsView()
     private let browseToolbar = BrowseToolbarView()
-    private let suggestionStrip = SuggestionStripView()
     private let keyboardView = KeyboardView()
     private let fullAccessNotice = UILabel()
     private let toast = ToastView()
@@ -49,7 +48,7 @@ final class KeyboardViewController: UIInputViewController {
         keyboardView.render(keyboardState.layout)
         apply(mode: .browsing, animated: false)
         consumeOutcomes()
-        showEmptyState()
+        restoreLastSearch()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -73,7 +72,7 @@ final class KeyboardViewController: UIInputViewController {
         browsingStack = UIStackView(arrangedSubviews: [resultsView, browseToolbar])
         browsingStack.axis = .vertical
 
-        typingStack = UIStackView(arrangedSubviews: [suggestionStrip, keyboardView])
+        typingStack = UIStackView(arrangedSubviews: [keyboardView])
         typingStack.axis = .vertical
 
         fullAccessNotice.text = "Scryboard needs Full Access to reach Scryfall.\nSettings › General › Keyboard › Keyboards › Scryboard › Allow Full Access"
@@ -116,8 +115,6 @@ final class KeyboardViewController: UIInputViewController {
         browseToolbar.isHidden = !needsInputModeSwitchKey
         keyboardView.showsGlobeKey = needsInputModeSwitchKey
         browseToolbar.globeButton.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
-
-        suggestionStrip.onSelect = { [weak self] name in self?.chooseSuggestion(name) }
 
         keyboardView.inputModeListHandler = self
         keyboardView.onAction = { [weak self] action in self?.perform(action) }
@@ -214,40 +211,53 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    /// Keystrokes only edit the bar. Nothing is sent until the return key:
+    /// the name-suggestion strip that used to fire `/cards/autocomplete` here
+    /// was dropped for the syntax row, so there is no request to debounce.
     private func queryChanged() {
         searchBar.query = query
-        let current = query
-        Task { await pipeline.typed(current) }
     }
 
     private func commitSearch() {
         let current = query
         apply(mode: .browsing, animated: true)
         guard !current.isEmpty else { return }
+        SavedSearch.remember(.query, current)
         Task { await pipeline.search(current) }
-    }
-
-    private func chooseSuggestion(_ name: String) {
-        query = name
-        searchBar.query = name
-        apply(mode: .browsing, animated: true)
-        Task { await pipeline.searchExact(name: name) }
     }
 
     private func clearQuery() {
         query = ""
         searchBar.query = ""
-        suggestionStrip.show([])
+        SavedSearch.clear()
         Task { await pipeline.cancel() }
     }
 
     /// Every printing of a card, newest first. Commander players care which
-    /// art they send. Reached by holding a card, or tapping a suggested name.
+    /// art they send. Reached by holding a card.
     private func showPrintings(of card: Card) {
         query = card.name
         searchBar.query = card.name
         toast.show("All printings of \(card.name)")
+        SavedSearch.remember(.printings, card.name)
         Task { await pipeline.searchExact(name: card.name) }
+    }
+
+    /// The host rebuilds the keyboard on every dismissal, and pasting a copied
+    /// card dismisses it, so the last search is re-run rather than lost.
+    private func restoreLastSearch() {
+        guard let saved = SavedSearch.load() else {
+            showEmptyState()
+            return
+        }
+        query = saved.text
+        searchBar.query = saved.text
+        Task {
+            switch saved.kind {
+            case .query: await pipeline.search(saved.text)
+            case .printings: await pipeline.searchExact(name: saved.text)
+            }
+        }
     }
 
     // MARK: - Empty state
@@ -298,10 +308,11 @@ final class KeyboardViewController: UIInputViewController {
     private func handle(_ outcome: SearchOutcome) {
         switch outcome {
         case .idle:
-            suggestionStrip.show([])
             showEmptyState()
-        case .names(let names, _):
-            suggestionStrip.show(names)
+        case .names:
+            // No suggestion strip any more; the pipeline still offers names
+            // for the Android port and the container app.
+            break
         case .loading:
             resultsView.show(.loading)
         case .cards(let page, _):

@@ -141,32 +141,71 @@ final class KeyboardView: UIView {
 
 /// One keycap. Letter keys are light, function keys darker, as on the system
 /// keyboard, so the eye finds the edges of the alphabet without reading.
-private final class KeyButton: UIButton {
+///
+/// A plain control with a centred label, laid out by hand. The first version
+/// was a configuration-based `UIButton`; created while the typing stack was
+/// hidden, it laid its title out at zero size and kept that layout until the
+/// key was pressed, so every label sat at the top of its key on first open.
+private final class KeyButton: UIControl {
     let key: KeyboardKey
+
+    private let label = UILabel()
+    private let symbol = UIImageView()
+    private let restingColor: UIColor
+    private let pressedColor: UIColor
 
     init(key: KeyboardKey) {
         self.key = key
+        // Pressing inverts the shade, which is what the system keyboard does.
+        restingColor = key.isFunctionKey ? .systemFill : .systemBackground
+        pressedColor = key.isFunctionKey ? .systemBackground : .systemFill
         super.init(frame: .zero)
 
-        var configuration = UIButton.Configuration.filled()
-        configuration.cornerStyle = .medium
-        configuration.contentInsets = .zero
-        configuration.baseForegroundColor = .label
-        configuration.baseBackgroundColor = key.isFunctionKey ? .systemFill : .systemBackground
-        let font: UIFont = key.isFunctionKey
-            ? .systemFont(ofSize: 16, weight: .regular)
-            : .systemFont(ofSize: 22, weight: .regular)
-        configuration.attributedTitle = AttributedString(key.label, attributes: AttributeContainer([.font: font]))
-        self.configuration = configuration
-
+        backgroundColor = restingColor
+        layer.cornerRadius = 5
+        layer.cornerCurve = .continuous
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOpacity = 0.25
         layer.shadowOffset = CGSize(width: 0, height: 1)
         layer.shadowRadius = 0
+
+        if let name = key.symbolName {
+            symbol.image = UIImage(systemName: name)
+            symbol.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+            symbol.tintColor = .label
+            symbol.contentMode = .center
+            symbol.isUserInteractionEnabled = false
+            addSubview(symbol)
+        } else {
+            label.text = key.label
+            label.font = key.isFunctionKey
+                ? .systemFont(ofSize: 15, weight: .regular)
+                : .systemFont(ofSize: 20, weight: .regular)
+            label.textColor = .label
+            label.textAlignment = .center
+            label.adjustsFontSizeToFitWidth = true
+            label.minimumScaleFactor = 0.7
+            label.isUserInteractionEnabled = false
+            addSubview(label)
+        }
+
+        isAccessibilityElement = true
+        accessibilityTraits = .keyboardKey
         accessibilityLabel = key.accessibilityLabel
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        label.frame = bounds
+        symbol.frame = bounds
+        layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius).cgPath
+    }
+
+    override var isHighlighted: Bool {
+        didSet { backgroundColor = isHighlighted ? pressedColor : restingColor }
+    }
 }
 
 private extension KeyboardLayout {
@@ -196,6 +235,18 @@ private extension KeyboardKey {
         switch action {
         case .character, .space: false
         default: true
+        }
+    }
+
+    /// Keys drawn with an SF Symbol rather than their layout label, for the
+    /// system keyboard's look. Space is deliberately blank: people know.
+    var symbolName: String? {
+        switch action {
+        case .search: "return"
+        case .backspace: "delete.left"
+        case .nextInputMode: "globe"
+        case .shift: label == "⇪" ? "capslock.fill" : "shift"
+        case .character, .space, .plane: nil
         }
     }
 

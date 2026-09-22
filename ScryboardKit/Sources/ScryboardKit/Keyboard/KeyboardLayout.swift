@@ -130,6 +130,11 @@ public struct KeyboardLayout: Sendable, Hashable {
 
     private static func letters(shift: ShiftState) -> KeyboardLayout {
         KeyboardLayout(rows: [
+            // The query-syntax row, above the letters like the number row on
+            // an iPad: every operator a typical search needs without leaving
+            // the plane. `:` opens a filter, `<>=` compare, `"` quotes, `!`
+            // is an exact name, `-` negates, `()` group, `/` splits faces.
+            KeyboardRow(characterKeys(":<>=\"!-()/", shift: .off)),
             KeyboardRow(characterKeys("qwertyuiop", shift: shift)),
             KeyboardRow(characterKeys("asdfghjkl", shift: shift)),
             KeyboardRow(
@@ -218,8 +223,9 @@ public struct KeyboardLayout: Sendable, Hashable {
             KeyboardKey(id: "plane-\(plane.rawValue)", action: .plane(plane), label: label, widthUnits: 1.25),
             // Required by Apple. Never omit it, never hide it behind a long press.
             KeyboardKey(id: "globe", action: .nextInputMode, label: "🌐", widthUnits: 1.25),
-            KeyboardKey(id: "space", action: .space, label: "space", widthUnits: 5),
-            KeyboardKey(id: "search", action: .search, label: "search", widthUnits: 2.5),
+            // Unlabelled, as on the emoji keyboard: everyone knows the wide key.
+            KeyboardKey(id: "space", action: .space, label: "", widthUnits: 5),
+            KeyboardKey(id: "search", action: .search, label: "⏎", widthUnits: 2.5),
         ])
     }
 }

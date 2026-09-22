@@ -16,14 +16,23 @@ something it can show, not what it is.
   **recently copied cards**; on a fresh install, before anything has been copied,
   it shows a fixed **default search** (newest set, `order:released`).
 - **Tapping the search bar switches to typing mode.** The grid gives way to the
-  in-extension QWERTY (`KeyboardLayout`), with a **name-suggestion strip** from
-  `/cards/autocomplete` between the bar and the keys. In this mode backspace
-  edits the query, not the host text. The search bar is a custom-drawn view,
-  never a `UITextField`: a text field inside an extension tries to summon a
-  system keyboard that cannot appear.
-- **Search key, or tapping a suggestion, returns to grid mode** with results.
-  Tapping a suggestion runs an exact-name search (`!"Name"`, `unique=prints`)
-  so the grid shows every printing of that card — that *is* the printing picker.
+  in-extension QWERTY (`KeyboardLayout`). The letters plane carries a **syntax
+  row** above the letters, `: < > = " ! - ( ) /`, like the iPad number row, so
+  a normal query never leaves the plane. The space bar is unlabelled and the
+  commit key is a return symbol, as on the system keyboard. In this mode
+  backspace edits the query, not the host text. The search bar is a
+  custom-drawn view, never a `UITextField`: a text field inside an extension
+  tries to summon a system keyboard that cannot appear.
+- **No suggestion strip.** The name-suggestion strip from `/cards/autocomplete`
+  was removed on 2026-09-22 (the developer disliked it and it cost grid room).
+  Keystrokes send nothing; only the return key does. `SearchPipeline.typed(_:)`
+  stays in the Kit for the Android port and the container app.
+- **The return key returns to grid mode** with results from `/cards/search`.
+- **The last search survives keyboard rebuilds.** The host tears the extension
+  down on every dismissal, and pasting dismisses it, so `SavedSearch` keeps the
+  committed query (or held card name) in `UserDefaults` for ten minutes and
+  re-runs it on launch. The clear button in the pill removes it. Only the query
+  is stored; caching the first page too is a later upgrade.
 - **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied". Just that
   word: the longer "tap and hold to paste" read as an instruction for the
   keyboard itself and confused. The grid stays put; the card joins recents.
@@ -37,14 +46,11 @@ something it can show, not what it is.
 
 ### Query routing under this model
 
-- Plain text drives **two** requests: `/cards/autocomplete` (150 ms debounce)
-  for the suggestion strip, and `/cards/search` (300 ms debounce) for the grid,
-  because Scryfall matches bare words against card names — `lightning` returns
-  every card with that word in its name, with images. `classify(_:)` and
-  `SearchPipeline` currently route plain text to autocomplete only; extending
-  the pipeline to also emit `.cards` for plain text is a milestone 3 task.
-- Input containing `:` `<` `>` `=` or `"` goes to `/cards/search` only; the
-  strip is empty for syntax queries.
+- The keyboard sends one request, `/cards/search`, when the return key is
+  pressed. Scryfall matches bare words against card names, so `lightning`
+  returns every card with that word in its name; no translation is needed.
+- `classify(_:)` and `SearchPipeline.typed(_:)` still route plain text to
+  `/cards/autocomplete`; nothing in the extension calls them any more.
 
 ## Which machine is this? (read first)
 
@@ -69,7 +75,7 @@ xcode-select -p
 
 ## State of play
 
-Last updated 2026-09-21, end of the first Xcode session.
+Last updated 2026-09-22, start of the polish pass.
 
 - **Done:** milestones 1–5, verified end to end on the developer's iPhone via
   TestFlight on 2026-09-22: search, grid, tap-to-copy, and paste into a real
@@ -77,20 +83,51 @@ Last updated 2026-09-21, end of the first Xcode session.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 99 tests across 13 suites, no warnings, Swift 6 language mode,
+- **Green:** 98 tests across 12 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
-- **Next, in order:**
-  1. Work through the developer's own issue list from the first phone session
-     (they keep it; ask for it).
-  2. Milestone 6: container app onboarding (enable keyboard, Full Access and
+- **Polish list from the first phone session (agreed 2026-09-22).** Work it in
+  this order; details were settled with the developer, do not re-ask:
+  1. ~~Key labels sat at the top of every key until pressed~~ — fixed: keys
+     are a hand-laid-out `UIControl`, not a configuration `UIButton`. Awaiting
+     confirmation on the phone.
+  2. ~~Caret sat too far right of the last letter~~ — fixed: custom stack
+     spacing after the label. Awaiting confirmation on the phone.
+  3. ~~Search reset to recents after every copy/paste or dismissal~~ — done via
+     `SavedSearch`, ten-minute lifetime, query re-run. Later upgrade: store the
+     first page as well so restoring neither flickers nor costs a request.
+  4. ~~Suggestion strip out, syntax row in~~ — done (letters plane only; no
+     tokens like `t:` for now). Rows shrank a little to fit; revisit if it
+     feels cramped.
+  5. ~~Smaller key glyphs, unlabelled space bar, return symbol for search~~ —
+     done, awaiting confirmation.
+  6. **Way back out of the printings view.** Prototype options as artifacts
+     first. Candidates: a header above the grid ("All printings of X" + Back)
+     and a floating Back button bottom-right over the grid. One level of
+     history is enough (nothing goes deeper than printings). While in the
+     printings view the pill keeps the *original query*, not the card name.
+  7. **Sort order setting in the container app.** All Scryfall orders offered
+     (name, set, released, rarity, color, usd, eur, tix, cmc, power,
+     toughness, edhrec, penny, artist, review), direction as a second option,
+     default edhrec. Applies to typed searches only, not the empty-grid default.
+     If the typed query contains `order:` send no `order=`/`dir=` parameter at
+     all so Scryfall honours the text. Needs an App Group shared with the
+     extension (first shared setting).
+  8. **Card size setting: small / medium / large.** Keyboard height stays the
+     same; only the column count changes. Large switches thumbnails to the
+     `normal` scan — check memory against the extension ceiling with a large
+     result set (`t:creature`, all Mountain printings) before shipping. Also
+     try a pinch gesture on the grid, so both routes can be compared.
+  9. Landscape checked on the phone 2026-09-22: fine. Dark mode: fine.
+- **Next, after the polish list:**
+  1. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
      attribution screen. The bones exist in `ios/Scryboard/ContentView.swift`.
-  3. Milestone 7 polish: double-faced flip, designed empty/offline/error states,
+  2. Milestone 7 polish: double-faced flip, designed empty/offline/error states,
      sharper thumbnails on iPad (small scan is stretched there), Instruments
      memory pass against the extension ceiling, dark mode and landscape.
-  4. Real app icon (original artwork, no card imagery); the current one is a
+  3. Real app icon (original artwork, no card imagery); the current one is a
      flat placeholder made in code. Then the store listing.
-  5. Finish or delete `ios/ScryboardUITests` (see Open items).
+  4. Finish or delete `ios/ScryboardUITests` (see Open items).
 - **iOS 26 facts learned the hard way:** a height constraint on the root view is
   ignored after the first layout, so the extension uses `allowsSelfSizing` with
   the height on its own content column. The system draws its own globe and
@@ -110,7 +147,7 @@ Last updated 2026-09-21, end of the first Xcode session.
 
   | Need | Already in ScryboardKit / ScryboardUI |
   | --- | --- |
-  | Search bar routing | `SearchPipeline.typed(_:)` (suggestions), `.search(_:)`, `.searchExact(name:)` |
+  | Search bar routing | `SearchPipeline.search(_:)`, `.searchExact(name:)` (`.typed(_:)` is unused by the extension) |
   | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)` |
   | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry) |
   | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |

@@ -8,20 +8,32 @@ struct KeyboardLayoutTests {
     func qwertyRows() {
         let layout = KeyboardLayout.standard(plane: .letters, shift: .off)
 
-        #expect(layout.rows.count == 4)
-        #expect(layout.rows[0].keys.map(\.label).joined() == "qwertyuiop")
-        #expect(layout.rows[1].keys.map(\.label).joined() == "asdfghjkl")
-        #expect(layout.rows[2].keys.map(\.action).first == .shift)
-        #expect(layout.rows[2].keys.map(\.action).last == .backspace)
+        #expect(layout.rows.count == 5)
+        #expect(layout.rows[1].keys.map(\.label).joined() == "qwertyuiop")
+        #expect(layout.rows[2].keys.map(\.label).joined() == "asdfghjkl")
+        #expect(layout.rows[3].keys.map(\.action).first == .shift)
+        #expect(layout.rows[3].keys.map(\.action).last == .backspace)
+    }
+
+    /// The syntax row is the reason the strip of suggested names went away:
+    /// it gives the operators a search needs without leaving the letters.
+    @Test("The letters plane opens with a row of query syntax")
+    func syntaxRow() {
+        let row = KeyboardLayout.standard(plane: .letters, shift: .off).rows[0]
+        #expect(row.keys.map(\.label).joined() == ":<>=\"!-()/")
+        #expect(row.keys.allSatisfy { $0.widthUnits == 1 })
+        #expect(row.widthUnits == 10)
     }
 
     @Test("Shift redraws the letters in uppercase")
     func shiftedLabels() {
         for shift in [ShiftState.oneShot, .locked] {
             let layout = KeyboardLayout.standard(plane: .letters, shift: shift)
-            #expect(layout.rows[0].keys.map(\.label).joined() == "QWERTYUIOP")
+            #expect(layout.rows[1].keys.map(\.label).joined() == "QWERTYUIOP")
             // The action stays lowercase — casing is applied on insert, once.
-            #expect(layout.rows[0].keys.first?.action == .character("q"))
+            #expect(layout.rows[1].keys.first?.action == .character("q"))
+            // The syntax row above the letters has no case to change.
+            #expect(layout.rows[0].keys.map(\.label).joined() == ":<>=\"!-()/")
         }
     }
 
