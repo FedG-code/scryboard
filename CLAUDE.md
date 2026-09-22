@@ -76,9 +76,9 @@ Last updated 2026-09-21, end of the first Xcode session.
   are built and were seen working in the simulator; the paste itself is not yet
   verified on hardware because the simulator's clipboard bridge is unreliable
   for images.
-- **TestFlight:** build 1.0 (1) uploaded 2026-09-21; the developer was about to
-  add themself as an internal tester and install on their iPhone. See
-  "Distribution".
+- **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
+  group exists with the developer in it, installing on their iPhone on
+  2026-09-22. See "Distribution".
 - **Green:** 99 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Next, in order:**
@@ -192,6 +192,13 @@ xcodebuild archive -project Scryboard.xcodeproj -scheme Scryboard -configuration
 xcodebuild -exportArchive -archivePath /tmp/Scryboard.xcarchive -exportOptionsPlist ExportOptions.plist \
   -exportPath /tmp/export -allowProvisioningUpdates
 ```
+
+Apple's "build processed" email is unreliable; check the TestFlight tab in App
+Store Connect instead. External testing (friends, public link) needs Beta App
+Review: the form's contact details are the developer's own, for the reviewer;
+the description is what testers see; review notes should say the keyboard needs
+Full Access only to reach the Scryfall API and collects nothing. Hold external
+testing until milestone 6 gives the reviewer a real onboarding screen.
 
 `ios/ExportOptions.plist` uses `method: app-store-connect`, `destination: upload`
 and `manageAppVersionAndBuildNumber: true`, so build numbers are bumped by
