@@ -26,6 +26,26 @@ struct ResultsPagerTests {
         #expect(await log.count == 0)
     }
 
+    @Test("A snapshot restores the pager where it left off")
+    func snapshotRoundTrips() async throws {
+        let log = RequestLog()
+        let page = try Fixture.decode(SearchPage.self, from: "search_page")
+        let pager = ResultsPager(client: makeClient(log: log), firstPage: page)
+        #expect(await pager.snapshot == page)
+
+        try await pager.loadMore()
+        let snapshot = await pager.snapshot
+        #expect(snapshot.data.map(\.name) == ["Lightning Bolt", "Swords to Plowshares", "Terror"])
+        #expect(snapshot.hasMore == false)
+        #expect(snapshot.totalCards == 1287)
+
+        let restored = ResultsPager(client: makeClient(log: log), firstPage: snapshot)
+        #expect(await restored.cards == snapshot.data)
+        #expect(await restored.canLoadMore == false)
+        #expect(try await restored.loadMore() == false)
+        #expect(await log.count == 1, "restoring costs no request")
+    }
+
     @Test("Loading more appends the next page")
     func appendsNextPage() async throws {
         let log = RequestLog()

@@ -124,6 +124,31 @@ struct SearchPipelineTests {
         #expect(await log.count == 0, "cancelled inside the debounce window")
     }
 
+    @Test("drop() cancels the request without reporting idle")
+    func silentDrop() async throws {
+        let log = RequestLog()
+        let pipeline = makePipeline(log: log) { request in
+            if request.url?.query?.contains("bolt") == true {
+                // Hangs until cancelled.
+                try await Task.sleep(for: .seconds(10))
+            }
+            return (try Fixture.data("search_page"), .stub(200, for: request))
+        }
+
+        await pipeline.search("bolt")
+        await pipeline.drop()
+        await pipeline.search("zap")
+        let outcomes = await pipeline.take(3)
+
+        #expect(outcomes[0] == .loading(query: "bolt"))
+        #expect(outcomes[1] == .loading(query: "zap"))
+        guard case .cards(_, let query) = outcomes[2] else {
+            Issue.record("expected the second search's cards, got \(outcomes[2])")
+            return
+        }
+        #expect(query == "zap")
+    }
+
     @Test("A one-character query stays local and clears the strip")
     func shortQueryYieldsNoNames() async throws {
         let log = RequestLog()

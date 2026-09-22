@@ -203,6 +203,15 @@ public actor SearchPipeline {
         continuation.yield(.idle)
     }
 
+    /// Drop any in-flight or pending request and say nothing. For a caller
+    /// that already has what it wants to show, such as Back from the
+    /// printings view restoring the grid it kept; ``cancel()`` would report
+    /// ``SearchOutcome/idle`` and wipe it.
+    public func drop() {
+        inFlight?.cancel()
+        inFlight = nil
+    }
+
     /// Close ``outcomes``. The pipeline is unusable afterwards.
     public func finish() {
         inFlight?.cancel()

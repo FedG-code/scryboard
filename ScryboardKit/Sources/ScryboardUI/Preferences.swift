@@ -24,14 +24,6 @@ public enum CardSize: String, Sendable, Hashable, CaseIterable, Codable {
         }
     }
 
-    /// Medium and large cells outgrow Scryfall's `small` scan (146 px wide)
-    /// on a 3× screen, so they load the `normal` scan; only small cells keep
-    /// the cheap one (decided 2026-09-22). It costs more bytes per card; the
-    /// decoded thumbnail is still capped at cell size.
-    public var scan: ImageSize {
-        self == .small ? .small : .normal
-    }
-
     public var larger: CardSize? {
         switch self {
         case .small: .medium

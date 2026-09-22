@@ -2,9 +2,9 @@ import UIKit
 import ScryboardKit
 import ScryboardUI
 
-/// The card grid. Cells show the scan the card size calls for (`small` for
-/// small cells, `normal` otherwise), decoded at cell size through
-/// `ImageStore` so the extension stays far under its memory ceiling.
+/// The card grid. Cells show Scryfall's `normal` scan at every card size
+/// (decided 2026-09-22), decoded at cell size through `ImageStore` so the
+/// extension stays far under its memory ceiling.
 final class ResultsView: UIView {
     enum Status {
         case hint(String)
@@ -18,6 +18,8 @@ final class ResultsView: UIView {
     var onLongPress: ((Card) -> Void)?
     /// Called as cells come on screen, so the owner can page in more results.
     var onCardAppeared: ((Int) -> Void)?
+    /// The grid stopped moving. The owner notes where it is.
+    var onScrollSettled: (() -> Void)?
     /// The user pinched the grid to a new size. The owner persists it.
     var onPinchToSize: ((CardSize) -> Void)?
 
@@ -33,7 +35,16 @@ final class ResultsView: UIView {
     }
 
     private(set) var cards: [Card] = []
+    /// The card at the top of the grid, or `nil` while it is empty. Stored
+    /// as an index rather than an offset so it survives a change of card size.
+    var firstVisibleIndex: Int? {
+        collection.indexPathsForVisibleItems.map(\.item).min()
+    }
+
     private let collection: UICollectionView
+    /// Where to scroll once the grid has a size. Set by `show(_:scrollTo:)`
+    /// before the first layout, when scrolling would have nowhere to go.
+    private var pendingScroll: Int?
     private let statusLabel = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
 
@@ -152,11 +163,22 @@ final class ResultsView: UIView {
         }
     }
 
-    func show(_ cards: [Card]) {
+    /// Replace the grid. Lands on `scrollTo`, a card index, or at the top.
+    func show(_ cards: [Card], scrollTo index: Int = 0) {
         self.cards = cards
         collection.reloadData()
         collection.setContentOffset(.zero, animated: false)
+        pendingScroll = index > 0 && index < cards.count ? index : nil
         show(.cards)
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let index = pendingScroll, collection.bounds.height > 0 else { return }
+        pendingScroll = nil
+        collection.layoutIfNeeded()
+        collection.scrollToItem(at: IndexPath(item: index, section: 0), at: .top, animated: false)
     }
 
     /// Append a page without disturbing the scroll position.
@@ -175,7 +197,7 @@ extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CardCell.reuseIdentifier, for: indexPath) as! CardCell
-        cell.show(cards[indexPath.item], size: cardSize)
+        cell.show(cards[indexPath.item])
         return cell
     }
 
@@ -185,6 +207,14 @@ extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         onSelect?(cards[indexPath.item])
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        onScrollSettled?()
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { onScrollSettled?() }
     }
 }
 
@@ -217,14 +247,13 @@ final class CardCell: UICollectionViewCell {
         imageView.image = nil
     }
 
-    func show(_ card: Card, size: CardSize) {
+    func show(_ card: Card) {
         accessibilityLabel = card.name
         isAccessibilityElement = true
-        guard let url = card.imageURL(size.scan) else { return }
-        // Never decode past the scan's own height: 204 px for small, 680 for
-        // normal. The cell is usually smaller still, and that is the cap.
-        let scanHeight = size.scan == .normal ? 680 : 204
-        let maxPixels = min(scanHeight, Int(bounds.height * traitCollection.displayScale))
+        guard let url = card.imageURL(.normal) else { return }
+        // Never decode past the scan's own height, 680 px. The cell is usually
+        // smaller still, and that is the cap.
+        let maxPixels = min(680, Int(bounds.height * traitCollection.displayScale))
         load = Task { [weak self] in
             guard let image = try? await ImageStore.shared.thumbnail(for: url, maxPixelSize: max(maxPixels, 100)) else { return }
             guard !Task.isCancelled, let self else { return }

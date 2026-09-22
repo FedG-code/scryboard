@@ -41,6 +41,11 @@ final class KeyboardViewController: UIInputViewController {
     private var outcomeTask: Task<Void, Never>?
     /// Pages the current search as the grid scrolls. Replaced per search.
     private var pager: ResultsPager?
+    /// The grid as it was before printings replaced it, so Back restores it
+    /// in place: no request, same scroll position. One level.
+    private var gridBeforePrintings: (pager: ResultsPager?, cards: [Card], firstVisible: Int)?
+    /// Orders results writes; see `SavedResults.store`.
+    private var resultsSequence = 0
     private var copyTask: Task<Void, Never>?
 
     // MARK: - Lifecycle
@@ -65,6 +70,11 @@ final class KeyboardViewController: UIInputViewController {
         updateHeight()
         refreshFullAccessState()
         applyPreferences()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        rememberPosition()
     }
 
     private func applyPreferences() {
@@ -184,9 +194,11 @@ final class KeyboardViewController: UIInputViewController {
                 let loaded = await pager.cards
                 if loaded.count > self.resultsView.cards.count {
                     self.resultsView.append(Array(loaded[self.resultsView.cards.count...]))
+                    self.persistResults()
                 }
             }
         }
+        resultsView.onScrollSettled = { [weak self] in self?.rememberPosition() }
     }
 
     // MARK: - Height
@@ -294,15 +306,22 @@ final class KeyboardViewController: UIInputViewController {
         query = QueryBuffer()
         queryChanged()
         printings = nil
+        gridBeforePrintings = nil
         backButton.isHidden = true
         SavedSearch.clear()
-        Task { await pipeline.cancel() }
+        Task {
+            await SavedResults.shared.clear()
+            await pipeline.cancel()
+        }
     }
 
     /// Every printing of a card, newest first. Commander players care which
     /// art they send. Reached by holding a card. The pill keeps the query the
     /// user typed; the floating Back button returns to it.
     private func showPrintings(of card: Card) {
+        if printings == nil {
+            gridBeforePrintings = (pager, resultsView.cards, resultsView.firstVisibleIndex ?? 0)
+        }
         printings = card.name
         backButton.isHidden = false
         toast.show("All printings of \(card.name)")
@@ -311,15 +330,43 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     /// Back from the printings view to whatever filled the grid before it.
+    /// The grid kept from before comes back as it was; after a keyboard
+    /// rebuild there is none, and the query is run again.
     private func leavePrintings() {
         printings = nil
         backButton.isHidden = true
         SavedSearch.remember(query: query.text, printings: nil)
+        Task { await pipeline.drop() }
+        if let kept = gridBeforePrintings {
+            gridBeforePrintings = nil
+            pager = kept.pager
+            resultsView.show(kept.cards, scrollTo: kept.firstVisible)
+            SavedSearch.rememberPosition(kept.firstVisible)
+            persistResults()
+            return
+        }
         let current = query.text
         if current.isEmpty {
             showEmptyState()
         } else {
             runSearch(current)
+        }
+    }
+
+    /// Note where the grid is, for the next keyboard rebuild.
+    private func rememberPosition() {
+        guard !query.isEmpty || printings != nil, let index = resultsView.firstVisibleIndex else { return }
+        SavedSearch.rememberPosition(index)
+    }
+
+    /// Write everything the pager has loaded to disk for the saved search.
+    private func persistResults() {
+        guard let pager, let saved = SavedSearch.load() else { return }
+        resultsSequence += 1
+        let sequence = resultsSequence
+        Task {
+            let snapshot = await pager.snapshot
+            await SavedResults.shared.store(snapshot, id: saved.resultsID, sequence: sequence)
         }
     }
 
@@ -334,10 +381,18 @@ final class KeyboardViewController: UIInputViewController {
         queryChanged()
         printings = saved.printings
         backButton.isHidden = saved.printings == nil
-        if let name = saved.printings {
-            Task { await pipeline.searchExact(name: name) }
-        } else {
-            runSearch(saved.query)
+        resultsView.show(.loading)
+        Task { [weak self] in
+            let stored = await SavedResults.shared.load(id: saved.resultsID)
+            guard let self else { return }
+            if let stored {
+                pager = ResultsPager(client: client, firstPage: stored)
+                resultsView.show(stored.data, scrollTo: saved.firstVisible)
+            } else if let name = saved.printings {
+                await pipeline.searchExact(name: name)
+            } else {
+                runSearch(saved.query)
+            }
         }
     }
 
@@ -399,6 +454,7 @@ final class KeyboardViewController: UIInputViewController {
         case .cards(let page, _):
             pager = ResultsPager(client: client, firstPage: page)
             resultsView.show(page.data)
+            persistResults()
         case .empty(let query):
             resultsView.show(.message("No cards match “\(query)”."))
         case .failure(let error, _):

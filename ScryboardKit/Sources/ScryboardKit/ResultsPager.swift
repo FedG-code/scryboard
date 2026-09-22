@@ -40,6 +40,14 @@ public actor ResultsPager {
     /// `true` while Scryfall still has pages for this search.
     public var canLoadMore: Bool { nextPageURL != nil }
 
+    /// Everything loaded so far as one page, with the link to what is still
+    /// unfetched. Feed it to ``init(client:firstPage:)`` to carry a search
+    /// across a process death: the grid comes back as far as it got and
+    /// paging continues from the same place, with no request.
+    public var snapshot: SearchPage {
+        SearchPage(data: cards, hasMore: nextPageURL != nil, nextPage: nextPageURL, totalCards: totalCards)
+    }
+
     /// Call as cells come on screen. Fetches the next page once the index is
     /// within ``prefetchDistance`` of the end, and does nothing otherwise.
     public func cardAppeared(at index: Int) async {

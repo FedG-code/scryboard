@@ -10,8 +10,8 @@ import FoundationNetworking
 /// in a bounded `NSCache`.
 ///
 /// One instance per process. Thumbnails are decoded at the requested pixel
-/// size and never larger than Scryfall's `small` scan, so a cached thumbnail
-/// costs at most 146 × 204 × 4 bytes.
+/// size, which the grid caps at its cell, and the cache's cost limit bounds
+/// the total whatever scan they came from.
 public actor ImageStore {
     public static let shared = ImageStore()
 
