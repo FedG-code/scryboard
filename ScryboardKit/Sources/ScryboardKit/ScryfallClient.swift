@@ -64,12 +64,20 @@ public struct ScryfallClient: Sendable {
     ) async throws -> SearchPage {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ScryboardError.invalidURL(query) }
-        let request = try makeRequest(path: "/cards/search", query: [
+        // A query that sets its own sort with `order:` keeps it: the parameter
+        // is left out so the two never compete. Same for `direction:`.
+        var items = [
             URLQueryItem(name: "q", value: trimmed),
             URLQueryItem(name: "unique", value: unique.rawValue),
-            URLQueryItem(name: "order", value: order.rawValue),
-            URLQueryItem(name: "dir", value: direction.rawValue),
-        ])
+        ]
+        let ordersItself = specifiesOrder(trimmed)
+        if !ordersItself {
+            items.append(URLQueryItem(name: "order", value: order.rawValue))
+        }
+        if !ordersItself, !specifiesDirection(trimmed) {
+            items.append(URLQueryItem(name: "dir", value: direction.rawValue))
+        }
+        let request = try makeRequest(path: "/cards/search", query: items)
         return try await perform(request, as: SearchPage.self)
     }
 

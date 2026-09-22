@@ -80,6 +80,34 @@ struct RequestBuildingTests {
         #expect(request.rawQuery?.contains(" ") == false, "spaces must be escaped")
     }
 
+    @Test("The chosen sort is sent unless the query sets its own")
+    func sortParameters() async throws {
+        let log = RequestLog()
+        let client = ScryfallClient(transport: StubTransport(log: log, fixture: "search_page"))
+
+        _ = try await client.search("t:goblin", order: .edhrec, direction: .descending)
+        var request = try #require(await log.last)
+        #expect(request.queryValue("order") == "edhrec")
+        #expect(request.queryValue("dir") == "desc")
+
+        _ = try await client.search("t:goblin order:cmc", order: .edhrec, direction: .descending)
+        request = try #require(await log.last)
+        #expect(request.queryValue("order") == nil, "the query's order: must win")
+        #expect(request.queryValue("dir") == nil, "a direction without our order would apply to theirs")
+
+        _ = try await client.search("t:goblin direction:asc", order: .edhrec, direction: .descending)
+        request = try #require(await log.last)
+        #expect(request.queryValue("order") == "edhrec")
+        #expect(request.queryValue("dir") == nil)
+    }
+
+    @Test("Every Scryfall sort order is offered")
+    func allOrders() {
+        let sent = Set(SearchOrder.allCases.map(\.rawValue))
+        #expect(sent == ["name", "set", "released", "rarity", "color", "usd", "tix", "eur", "cmc",
+                         "power", "toughness", "edhrec", "penny", "artist", "review"])
+    }
+
     /// URLComponents leaves "+" alone in a query value, and a server is free to
     /// read an unescaped "+" as a space — which silently changes the query.
     @Test("Plus signs are escaped rather than read as spaces")

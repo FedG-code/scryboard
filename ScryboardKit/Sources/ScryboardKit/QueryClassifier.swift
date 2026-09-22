@@ -30,3 +30,28 @@ public func classify(_ query: String) -> QueryKind {
     guard !trimmed.isEmpty else { return .autocomplete }
     return trimmed.contains(where: QueryKind.syntaxCharacters.contains) ? .search : .autocomplete
 }
+
+/// Whether the query itself sets the sort, with Scryfall's `order:` keyword.
+///
+/// The user's chosen order from settings is sent as a URL parameter, but a
+/// query that says `order:cmc` must win, so the parameter is dropped whenever
+/// the keyword is present. `direction:` (and its alias `dir:`) likewise.
+/// The keyword must start a term: `o:"order:"` inside a quoted phrase is
+/// rare enough not to matter, and misreading it only changes the sort.
+public func specifiesOrder(_ query: String) -> Bool {
+    hasKeyword("order", in: query)
+}
+
+public func specifiesDirection(_ query: String) -> Bool {
+    hasKeyword("direction", in: query) || hasKeyword("dir", in: query)
+}
+
+private func hasKeyword(_ keyword: String, in query: String) -> Bool {
+    query.lowercased()
+        .split(whereSeparator: { $0.isWhitespace || $0 == "(" })
+        .contains { term in
+            var term = Substring(term)
+            if term.hasPrefix("-") { term = term.dropFirst() }
+            return term.hasPrefix(keyword + ":")
+        }
+}

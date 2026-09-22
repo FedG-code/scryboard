@@ -63,6 +63,7 @@ fastlane/test_output
 
 # XcodeGen output — regenerate with `cd ios && xcodegen generate`
 ios/Scryboard.xcodeproj/
+ios/*/*.entitlements
 ios/Local.xcconfig
 
 # Local screenshots, never pushed

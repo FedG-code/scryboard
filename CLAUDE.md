@@ -85,7 +85,7 @@ Last updated 2026-09-22, start of the polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 98 tests across 12 suites, no warnings, Swift 6 language mode,
+- **Green:** 105 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
@@ -111,18 +111,23 @@ Last updated 2026-09-22, start of the polish pass.
      developer is gathering feedback; options A (header row above the grid)
      and C (chevron in the pill) live in `docs/prototypes/printings-back.html`
      with a tab switcher, open it in a browser to compare.
-  7. **Sort order setting in the container app.** All Scryfall orders offered
-     (name, set, released, rarity, color, usd, eur, tix, cmc, power,
-     toughness, edhrec, penny, artist, review), direction as a second option,
-     default edhrec. Applies to typed searches only, not the empty-grid default.
-     If the typed query contains `order:` send no `order=`/`dir=` parameter at
-     all so Scryfall honours the text. Needs an App Group shared with the
-     extension (first shared setting).
-  8. **Card size setting: small / medium / large.** Keyboard height stays the
-     same; only the column count changes. Large switches thumbnails to the
-     `normal` scan — check memory against the extension ceiling with a large
-     result set (`t:creature`, all Mountain printings) before shipping. Also
-     try a pinch gesture on the grid, so both routes can be compared.
+  7. ~~Sort order setting in the container app~~ — done 2026-09-22. All
+     fifteen Scryfall orders plus direction, default EDHREC rank / automatic,
+     in `Preferences` (ScryboardUI) stored in the App Group
+     `group.com.fedg.scryboard` via `PreferencesStore`. Typed searches only;
+     the empty grid keeps `game:paper` by EDHREC. A query containing `order:`
+     (or `direction:`/`dir:`) sends no `order=`/`dir=` parameter; see
+     `specifiesOrder(_:)` in the Kit and its tests. The extension re-reads
+     preferences on every appearance. Awaiting a phone check.
+  8. ~~Card size setting: small / medium / large~~ — done 2026-09-22, both
+     routes: a segmented control in the app and a pinch on the grid (one step
+     per pinch, saved to the same preference). Keyboard height unchanged;
+     target cell widths 88 / 118 / 172 pt give 4 / 3 / 2 columns on a phone.
+     Large loads the `normal` scan, decoded at cell size, so memory per
+     thumbnail is bounded by the cell, not the scan; the network and disk
+     cost per card is roughly ten times higher. **Still to measure:** large
+     cards with a big result set (`t:creature`, all Mountain printings) in
+     Instruments against the extension ceiling before external testing.
   9. Landscape checked on the phone 2026-09-22: fine. Dark mode: fine.
 - **Next, after the polish list:**
   1. Milestone 6: container app onboarding (enable keyboard, Full Access and
@@ -177,6 +182,13 @@ Last updated 2026-09-22, start of the polish pass.
 - **Image loading and the thumbnail cache live in a second package target,
   `ScryboardUI`**, which may import ImageIO and UIKit and is shared by both app
   targets. `ScryboardKit` stays Foundation-only for the Android port.
+- **Settings cross over through an App Group**, `group.com.fedg.scryboard`,
+  declared in `ios/project.yml` for both targets. XcodeGen writes the
+  `.entitlements` files, which are gitignored like the project; automatic
+  signing registered the group from the command line on 2026-09-22 with no
+  portal work. `Preferences` and `PreferencesStore` in ScryboardUI are the
+  only readers and writers; recents and the saved search stay in the
+  extension's own defaults.
 
 ## Repository layout
 
@@ -288,7 +300,7 @@ Extension facts to design around:
 - `RequestsOpenAccess` = YES in the extension Info.plist (network access requires Full Access).
 - Hard memory ceiling (~60–80 MB); iOS kills the extension silently when exceeded. Downsample thumbnails at decode time via `CGImageSourceCreateThumbnailAtIndex`; `NSCache` with a count limit; never retain the full-size JPEG beyond the pasteboard write; zero third-party dependencies.
 - The extension sets its own height with a constraint on `inputView`. Grid mode may be taller than typing mode; animate the change.
-- Recents persist in the extension's own container (`UserDefaults` for the card list, cache directory for thumbnails). An App Group is only needed if the container app should show them too — decide in milestone 6.
+- Recents and the saved search persist in the extension's own container (`UserDefaults` for the card list, cache directory for thumbnails). The App Group carries settings only; moving recents there is a milestone 6 call if the container app should show them.
 - iOS 16+: first paste into each receiving app triggers a one-time system permission prompt. Expected; mention in onboarding.
 - Tap action: fetch `normal` JPEG → `UIPasteboard.general.setData(_, forPasteboardType: UTType.jpeg.identifier)` → toast → release.
 

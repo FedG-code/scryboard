@@ -33,6 +33,8 @@ final class KeyboardViewController: UIInputViewController {
     /// The held card whose printings fill the grid, if any.
     private var printings: String?
     private var keyboardState = KeyboardState()
+    /// Re-read on every appearance, so a change in the app shows next time.
+    private var preferences = Preferences()
     private let client = ScryfallClient()
     private lazy var pipeline = SearchPipeline(client: client)
     private var outcomeTask: Task<Void, Never>?
@@ -52,6 +54,7 @@ final class KeyboardViewController: UIInputViewController {
         wireActions()
         keyboardView.render(keyboardState.layout)
         apply(mode: .browsing, animated: false)
+        applyPreferences()
         consumeOutcomes()
         restoreLastSearch()
     }
@@ -60,6 +63,12 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillAppear(animated)
         updateHeight()
         refreshFullAccessState()
+        applyPreferences()
+    }
+
+    private func applyPreferences() {
+        preferences = PreferencesStore.shared.load()
+        resultsView.cardSize = preferences.cardSize
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -156,6 +165,12 @@ final class KeyboardViewController: UIInputViewController {
 
         resultsView.onSelect = { [weak self] card in self?.copy(card) }
         resultsView.onLongPress = { [weak self] card in self?.showPrintings(of: card) }
+        resultsView.onPinchToSize = { [weak self] size in
+            guard let self else { return }
+            preferences.cardSize = size
+            PreferencesStore.shared.save(preferences)
+            toast.show("\(size.title) cards")
+        }
         resultsView.onCardAppeared = { [weak self] index in
             guard let self, let pager else { return }
             Task { [weak self] in
@@ -259,7 +274,15 @@ final class KeyboardViewController: UIInputViewController {
             showEmptyState()
             return
         }
-        Task { await pipeline.search(current) }
+        runSearch(current)
+    }
+
+    /// A typed query, sorted the way the user chose in the app. A query that
+    /// says `order:` itself keeps its own; the client drops the parameter.
+    private func runSearch(_ query: String) {
+        let order = preferences.order
+        let direction = preferences.direction
+        Task { await pipeline.search(query, order: order, direction: direction) }
     }
 
     private func clearQuery() {
@@ -291,7 +314,7 @@ final class KeyboardViewController: UIInputViewController {
         if current.isEmpty {
             showEmptyState()
         } else {
-            Task { await pipeline.search(current) }
+            runSearch(current)
         }
     }
 
@@ -309,7 +332,7 @@ final class KeyboardViewController: UIInputViewController {
         if let name = saved.printings {
             Task { await pipeline.searchExact(name: name) }
         } else {
-            Task { await pipeline.search(saved.query) }
+            runSearch(saved.query)
         }
     }
 

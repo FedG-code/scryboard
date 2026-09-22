@@ -44,6 +44,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.fedg.scryboard
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    # The App Group is how the container app's settings reach the extension.
+    # XcodeGen writes the entitlements file from these properties; it is
+    # gitignored like the project. Automatic signing registers the group.
+    entitlements:
+      path: Scryboard/Scryboard.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.fedg.scryboard]
     info:
       path: Scryboard/Info.plist
       properties:
@@ -75,6 +82,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.fedg.scryboard.keyboard
         APPLICATION_EXTENSION_API_ONLY: YES
+    entitlements:
+      path: ScryboardKeyboard/ScryboardKeyboard.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.fedg.scryboard]
     info:
       path: ScryboardKeyboard/Info.plist
       properties:

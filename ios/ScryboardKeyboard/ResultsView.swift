@@ -17,17 +17,32 @@ final class ResultsView: UIView {
     var onLongPress: ((Card) -> Void)?
     /// Called as cells come on screen, so the owner can page in more results.
     var onCardAppeared: ((Int) -> Void)?
+    /// The user pinched the grid to a new size. The owner persists it.
+    var onPinchToSize: ((CardSize) -> Void)?
+
+    /// Columns and scan follow this. Setting it re-lays the grid out in place.
+    var cardSize: CardSize = .medium {
+        didSet {
+            guard cardSize != oldValue else { return }
+            collection.collectionViewLayout.invalidateLayout()
+            UIView.transition(with: collection, duration: 0.2, options: .transitionCrossDissolve) {
+                self.collection.reloadData()
+            }
+        }
+    }
 
     private(set) var cards: [Card] = []
     private let collection: UICollectionView
     private let statusLabel = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
 
-    /// Card scans are 5:7. Three columns on a phone, more on wider screens.
-    private static func layout() -> UICollectionViewCompositionalLayout {
-        UICollectionViewCompositionalLayout { _, environment in
+    /// Card scans are 5:7. As many columns as the chosen card size allows:
+    /// on a phone 4, 3 or 2. Wider screens get more.
+    private func makeLayout() -> UICollectionViewCompositionalLayout {
+        UICollectionViewCompositionalLayout { [weak self] _, environment in
             let width = environment.container.effectiveContentSize.width
-            let columns = max(3, Int(width / 118))
+            let target = self?.cardSize.targetCellWidth ?? CardSize.medium.targetCellWidth
+            let columns = max(2, Int(width / target))
             let spacing: CGFloat = 8
             let item = NSCollectionLayoutItem(layoutSize: .init(
                 widthDimension: .fractionalWidth(1.0 / CGFloat(columns)),
@@ -47,9 +62,10 @@ final class ResultsView: UIView {
     }
 
     override init(frame: CGRect) {
-        collection = UICollectionView(frame: .zero, collectionViewLayout: ResultsView.layout())
+        collection = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
         super.init(frame: frame)
 
+        collection.collectionViewLayout = makeLayout()
         collection.backgroundColor = .clear
         collection.dataSource = self
         collection.delegate = self
@@ -60,6 +76,9 @@ final class ResultsView: UIView {
         let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
         hold.minimumPressDuration = 0.4
         collection.addGestureRecognizer(hold)
+
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
+        collection.addGestureRecognizer(pinch)
 
         statusLabel.font = .preferredFont(forTextStyle: .subheadline)
         statusLabel.textColor = .secondaryLabel
@@ -93,6 +112,23 @@ final class ResultsView: UIView {
               let indexPath = collection.indexPathForItem(at: gesture.location(in: collection))
         else { return }
         onLongPress?(cards[indexPath.item])
+    }
+
+    /// One size step per pinch, in the direction of the gesture. Anything
+    /// under a quarter either way is treated as a wobble.
+    @objc private func pinched(_ gesture: UIPinchGestureRecognizer) {
+        guard gesture.state == .ended else { return }
+        let next: CardSize?
+        if gesture.scale > 1.25 {
+            next = cardSize.larger
+        } else if gesture.scale < 0.8 {
+            next = cardSize.smaller
+        } else {
+            next = nil
+        }
+        guard let next else { return }
+        cardSize = next
+        onPinchToSize?(next)
     }
 
     func show(_ status: Status) {
@@ -138,7 +174,7 @@ extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CardCell.reuseIdentifier, for: indexPath) as! CardCell
-        cell.show(cards[indexPath.item])
+        cell.show(cards[indexPath.item], size: cardSize)
         return cell
     }
 
@@ -180,12 +216,14 @@ final class CardCell: UICollectionViewCell {
         imageView.image = nil
     }
 
-    func show(_ card: Card) {
+    func show(_ card: Card, size: CardSize) {
         accessibilityLabel = card.name
         isAccessibilityElement = true
-        guard let url = card.imageURL(.small) else { return }
-        // Scryfall's small scan is 204 px tall; never ask for more than that.
-        let maxPixels = min(204, Int(bounds.height * traitCollection.displayScale))
+        guard let url = card.imageURL(size.scan) else { return }
+        // Never decode past the scan's own height: 204 px for small, 680 for
+        // normal. The cell is usually smaller still, and that is the cap.
+        let scanHeight = size.scan == .normal ? 680 : 204
+        let maxPixels = min(scanHeight, Int(bounds.height * traitCollection.displayScale))
         load = Task { [weak self] in
             guard let image = try? await ImageStore.shared.thumbnail(for: url, maxPixelSize: max(maxPixels, 100)) else { return }
             guard !Task.isCancelled, let self else { return }

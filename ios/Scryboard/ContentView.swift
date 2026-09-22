@@ -1,5 +1,6 @@
 import SwiftUI
 import ScryboardKit
+import ScryboardUI
 
 /// Milestone 2 placeholder. Milestone 6 replaces this with onboarding
 /// (enable keyboard, Full Access, paste-permission explainer) and the
@@ -8,6 +9,7 @@ import ScryboardKit
 struct ContentView: View {
     @State private var scratch = ""
     @FocusState private var scratchFocused: Bool
+    @State private var preferences = PreferencesStore.shared.load()
 
     var body: some View {
         NavigationStack {
@@ -21,6 +23,22 @@ struct ContentView: View {
                     Label("Settings › General › Keyboard › Keyboards › Add New Keyboard › Scryboard", systemImage: "keyboard")
                     Label("Then open Scryboard in that list and turn on Allow Full Access so it can reach Scryfall.", systemImage: "network")
                 }
+                Section {
+                    Picker("Sort results by", selection: $preferences.order) {
+                        ForEach(SearchOrder.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    Picker("Direction", selection: $preferences.direction) {
+                        ForEach(SortDirection.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    Picker("Card size", selection: $preferences.cardSize) {
+                        ForEach(CardSize.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Search results")
+                } footer: {
+                    Text("Applies to searches you type. A query with its own order: keeps it. You can also pinch the grid to change the card size.")
+                }
                 Section("About") {
                     Text(Attribution.text)
                         .font(.footnote)
@@ -28,7 +46,11 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Scryboard")
-            .onAppear { scratchFocused = true }
+            .onAppear {
+                scratchFocused = true
+                preferences = PreferencesStore.shared.load()
+            }
+            .onChange(of: preferences) { updated in PreferencesStore.shared.save(updated) }
         }
     }
 }

@@ -89,4 +89,29 @@ struct QueryClassifierTests {
             #expect(classify(query) == classify(query))
         }
     }
+
+    /// The settings screen's sort is sent as a parameter; a query that names
+    /// its own with `order:` has to win. This is what the client keys off.
+    @Test(
+        "A query that sets its own sort is recognised",
+        arguments: ["order:cmc", "t:creature order:usd", "c:r (order:edhrec)", "-order:name", "ORDER:set", "t:goblin order:released direction:asc"]
+    )
+    func ordersItself(_ query: String) {
+        #expect(specifiesOrder(query))
+    }
+
+    @Test(
+        "Order words inside other terms do not count",
+        arguments: ["border:black", "o:order", "\"in order\"", "t:creature", "recorder:yes", ""]
+    )
+    func doesNotOrderItself(_ query: String) {
+        #expect(!specifiesOrder(query))
+    }
+
+    @Test("Direction is recognised under both spellings")
+    func direction() {
+        #expect(specifiesDirection("t:elf direction:desc"))
+        #expect(specifiesDirection("t:elf dir:asc"))
+        #expect(!specifiesDirection("t:elf order:cmc"))
+    }
 }
