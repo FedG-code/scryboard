@@ -28,8 +28,9 @@ final class KeyboardViewController: UIInputViewController {
     private var heightConstraint: NSLayoutConstraint?
 
     private var mode: Mode = .browsing
-    /// What the user typed. Stays in the pill while printings are shown.
-    private var query = ""
+    /// What the user typed, and where the caret sits in it. Stays in the
+    /// pill while printings are shown.
+    private var query = QueryBuffer()
     /// The held card whose printings fill the grid, if any.
     private var printings: String?
     private var keyboardState = KeyboardState()
@@ -147,6 +148,10 @@ final class KeyboardViewController: UIInputViewController {
     private func wireActions() {
         searchBar.onTap = { [weak self] in self?.apply(mode: .typing, animated: true) }
         searchBar.onClear = { [weak self] in self?.clearQuery() }
+        searchBar.onMoveCaret = { [weak self] offset in
+            self?.query.moveCaret(to: offset)
+            self?.queryChanged()
+        }
         backButton.addAction(UIAction { [weak self] _ in self?.leavePrintings() }, for: .touchUpInside)
 
         // iOS 26 draws its own globe under third-party keyboards; older
@@ -245,11 +250,10 @@ final class KeyboardViewController: UIInputViewController {
         case .none:
             break
         case .insert(let text):
-            query += text
+            query.insert(text)
             queryChanged()
         case .deleteBackward:
-            guard !query.isEmpty else { return }
-            query.removeLast()
+            query.deleteBackward()
             queryChanged()
         case .submit:
             commitSearch()
@@ -262,11 +266,12 @@ final class KeyboardViewController: UIInputViewController {
     /// the name-suggestion strip that used to fire `/cards/autocomplete` here
     /// was dropped for the syntax row, so there is no request to debounce.
     private func queryChanged() {
-        searchBar.query = query
+        searchBar.query = query.text
+        searchBar.caret = query.caret
     }
 
     private func commitSearch() {
-        let current = query
+        let current = query.text
         printings = nil
         apply(mode: .browsing, animated: true)
         SavedSearch.remember(query: current, printings: nil)
@@ -286,8 +291,8 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func clearQuery() {
-        query = ""
-        searchBar.query = ""
+        query = QueryBuffer()
+        queryChanged()
         printings = nil
         backButton.isHidden = true
         SavedSearch.clear()
@@ -301,7 +306,7 @@ final class KeyboardViewController: UIInputViewController {
         printings = card.name
         backButton.isHidden = false
         toast.show("All printings of \(card.name)")
-        SavedSearch.remember(query: query, printings: card.name)
+        SavedSearch.remember(query: query.text, printings: card.name)
         Task { await pipeline.searchExact(name: card.name) }
     }
 
@@ -309,8 +314,8 @@ final class KeyboardViewController: UIInputViewController {
     private func leavePrintings() {
         printings = nil
         backButton.isHidden = true
-        SavedSearch.remember(query: query, printings: nil)
-        let current = query
+        SavedSearch.remember(query: query.text, printings: nil)
+        let current = query.text
         if current.isEmpty {
             showEmptyState()
         } else {
@@ -325,8 +330,8 @@ final class KeyboardViewController: UIInputViewController {
             showEmptyState()
             return
         }
-        query = saved.query
-        searchBar.query = saved.query
+        query = QueryBuffer(saved.query)
+        queryChanged()
         printings = saved.printings
         backButton.isHidden = saved.printings == nil
         if let name = saved.printings {

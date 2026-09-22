@@ -22,7 +22,10 @@ something it can show, not what it is.
   commit key is a return symbol, as on the system keyboard. In this mode
   backspace edits the query, not the host text. The search bar is a
   custom-drawn view, never a `UITextField`: a text field inside an extension
-  tries to summon a system keyboard that cannot appear.
+  tries to summon a system keyboard that cannot appear. It has a real caret:
+  tapping the text puts it in the nearest gap between letters and dragging
+  slides it, so typing and backspace happen there, not only at the end
+  (`QueryBuffer` in the Kit holds text and caret; added 2026-09-22).
 - **No suggestion strip.** The name-suggestion strip from `/cards/autocomplete`
   was removed on 2026-09-22 (the developer disliked it and it cost grid room).
   Keystrokes send nothing; only the return key does. `SearchPipeline.typed(_:)`
@@ -76,7 +79,7 @@ Last updated 2026-09-22, start of the polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 105 tests across 13 suites, no warnings, Swift 6 language mode,
+- **Green:** 111 tests across 14 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
@@ -120,6 +123,10 @@ Last updated 2026-09-22, start of the polish pass.
      cards with a big result set (`t:creature`, all Mountain printings) in
      Instruments against the extension ceiling before external testing.
   9. Landscape checked on the phone 2026-09-22: fine. Dark mode: fine.
+  10. ~~No way to move the caret to fix a typo mid-query~~ — done 2026-09-22.
+     `QueryBuffer` (Kit, tested) keeps text plus caret offset; the pill draws
+     the caret at the measured position, moves it on tap or drag, and scrolls
+     a long query to keep it in view. Awaiting a phone check.
 - **Next, after the polish list:**
   1. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
@@ -155,7 +162,7 @@ Last updated 2026-09-22, start of the polish pass.
   | Need | Already in ScryboardKit / ScryboardUI |
   | --- | --- |
   | Search bar routing | `SearchPipeline.search(_:)`, `.searchExact(name:)` (`.typed(_:)` is unused by the extension) |
-  | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)` |
+  | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)`, `QueryBuffer` (text + caret) |
   | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry) |
   | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |
   | Printing picker | `searchExact(name:)` fills the grid with every printing |
@@ -204,7 +211,7 @@ scryboard/
 │   │   ├── QueryClassifier.swift    (classify(_:))
 │   │   ├── SearchPipeline.swift     (debounce, cancel, SearchOutcome stream)
 │   │   ├── ResultsPager.swift       (grid paging: prefetch, dedupe, retry)
-│   │   ├── Keyboard/                (KeyboardLayout, KeyboardState — pure data)
+│   │   ├── Keyboard/                (KeyboardLayout, KeyboardState, QueryBuffer — pure data)
 │   │   └── Models/                  (Card, CardFace, ImageURIs, Layout, SearchPage,
 │   │                                 SearchOptions, ScryfallError)
 │   ├── Sources/ScryboardUI/         (milestone 4: ImageIO downsampling, NSCache,
