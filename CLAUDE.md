@@ -230,7 +230,7 @@ xcodebuild -project Scryboard.xcodeproj -scheme Scryboard \
 
 ## Distribution (TestFlight)
 
-First upload went out 2026-09-21 as 1.0 (1). The paid team ID lives only in
+First upload went out 2026-09-21 as 1.0 (1); the polish-pass build followed on 2026-09-22 (Apple assigns the build number). The paid team ID lives only in
 `ios/Local.xcconfig` (gitignored); if `-exportArchive` ever asks for a team,
 add a `teamID` key to a *local copy* of `ExportOptions.plist`, never to the
 committed one. The App Store Connect record for `com.fedg.scryboard` exists.
