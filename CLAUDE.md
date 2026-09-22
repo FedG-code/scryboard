@@ -168,7 +168,9 @@ Last updated 2026-09-22, start of the polish pass.
 - **No local card database, no offline mode.** Scryfall's server evaluates all search syntax (including `otag:`), so there is nothing to sync or bundle. The user is in a messaging context and therefore online.
 - **No gallery writes, ever.** Images live in the extension's cache directory (evictable) and the pasteboard only.
 - **Free forever.** Scryfall's API terms prohibit paywalling their data, and the WotC Fan Content Policy prohibits charging. No IAP, no subscriptions, no required accounts. Voluntary donation links live in the GitHub README only, not in-app.
-- **Public repo.** Never commit signing material (certificates, provisioning profiles, `.p8`/`.p12` files) or a `DEVELOPMENT_TEAM`; set the team locally in Xcode.
+- **Public repo, Apache-2.0** (switched from GPL-3.0 on 2026-09-22 so outside
+  contributions carry a built-in patent and contribution grant and nothing
+  conflicts with App Store terms). Never commit signing material (certificates, provisioning profiles, `.p8`/`.p12` files) or a `DEVELOPMENT_TEAM`; set the team locally in Xcode.
 - **iOS first, Android later.** The Kotlin client will be a port of the proven Swift client, not a parallel first draft.
 - **XcodeGen generates the project.** `ios/project.yml` is the source of truth;
   the `.xcodeproj` is gitignored and regenerated with `xcodegen generate` from
@@ -192,7 +194,7 @@ Last updated 2026-09-22, start of the polish pass.
 scryboard/
 ├── CLAUDE.md
 ├── README.md              (public-facing; contains the attribution block)
-├── LICENSE                (GPL-3.0)
+├── LICENSE                (Apache-2.0; NOTICE alongside it)
 ├── .gitignore
 ├── ScryboardKit/          (SwiftPM package)
 │   ├── Package.swift

@@ -11,12 +11,10 @@ trademark of Wizards of the Coast LLC.
 
 ## License
 
-Scryboard is free software under the GNU General Public License v3.0 (see
-`LICENSE`).
+Copyright 2026 Federico Giovannini. Scryboard is licensed under the Apache
+License, Version 2.0 (see `LICENSE`). You may use, modify and redistribute it
+under those terms. Contributions are welcome through pull requests and, per
+section 5 of the license, are accepted under the same terms.
 
-**Additional permission under GNU GPL version 3 section 7.** As the copyright
-holder, I grant permission to distribute this program, or a work based on it,
-through the Apple App Store and TestFlight, notwithstanding any terms of those
-services that would otherwise conflict with the GPL. This permission does not
-waive any other requirement of the GPL, including the obligation to make source
-available.
+Card data and images are Scryfall's and Wizards of the Coast's, not covered by
+this license; see the attribution above and the `NOTICE` file.
