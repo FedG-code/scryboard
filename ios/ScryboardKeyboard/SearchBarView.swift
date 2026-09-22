@@ -20,7 +20,7 @@ final class SearchBarView: UIView {
 
     /// Where the caret is drawn, `0...query.count`.
     var caret: Int = 0 {
-        didSet { setNeedsLayout() }
+        didSet { textArea.setNeedsLayout() }
     }
 
     /// Shows the caret and hides the placeholder styling while the QWERTY is up.
@@ -31,7 +31,7 @@ final class SearchBarView: UIView {
     private let pill = UIView()
     private let icon = UIImageView(image: UIImage(systemName: "magnifyingglass"))
     /// Clips a query longer than the pill and scrolls to keep the caret in view.
-    private let textArea = UIScrollView()
+    private let textArea = TextArea()
     private let label = UILabel()
     private let caretView = UIView()
     private let clearButton = UIButton(type: .system)
@@ -72,6 +72,7 @@ final class SearchBarView: UIView {
         textArea.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         textArea.addSubview(label)
         textArea.addSubview(caretView)
+        textArea.onLayout = { [weak self] in self?.layoutText() }
 
         clearButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
         clearButton.tintColor = .tertiaryLabel
@@ -118,24 +119,27 @@ final class SearchBarView: UIView {
         clearButton.isHidden = empty
         pill.accessibilityLabel = empty ? "Search cards" : query
         pill.accessibilityValue = isEditing ? "editing" : nil
-        setNeedsLayout()
+        textArea.setNeedsLayout()
         blink()
     }
 
     // MARK: - Layout
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
+    /// Frames inside the scroll area. Runs from the area's own layout pass,
+    /// once it has its size: the pill's pass comes first, when the area is
+    /// still zero-height, and placing the text then left it floating above
+    /// the pill. Frames snap to whole points so the glyphs stay sharp.
+    private func layoutText() {
         measureGaps()
 
         let area = textArea.bounds
-        let textWidth = gaps[gaps.count - 1]
+        let textWidth = gaps[gaps.count - 1].rounded(.up)
         let labelHeight = label.font.lineHeight.rounded(.up)
-        label.frame = CGRect(x: 0, y: (area.height - labelHeight) / 2, width: textWidth, height: labelHeight)
+        label.frame = CGRect(x: 0, y: ((area.height - labelHeight) / 2).rounded(), width: textWidth, height: labelHeight)
 
         let caretHeight: CGFloat = 22
-        let caretX = gaps[min(max(caret, 0), gaps.count - 1)]
-        caretView.frame = CGRect(x: caretX, y: (area.height - caretHeight) / 2, width: Self.caretWidth, height: caretHeight)
+        let caretX = gaps[min(max(caret, 0), gaps.count - 1)].rounded()
+        caretView.frame = CGRect(x: caretX, y: ((area.height - caretHeight) / 2).rounded(), width: Self.caretWidth, height: caretHeight)
 
         textArea.contentSize = CGSize(width: max(textWidth + Self.caretWidth, area.width), height: area.height)
         // Keep the caret on screen: a long query slides left under it, and
@@ -151,7 +155,7 @@ final class SearchBarView: UIView {
         } else {
             offset = farthest
         }
-        textArea.contentOffset.x = min(max(offset, 0), farthest)
+        textArea.contentOffset.x = min(max(offset, 0), farthest).rounded()
     }
 
     /// The x of each gap between characters of the drawn text, from the start
@@ -218,4 +222,14 @@ final class SearchBarView: UIView {
     }
 
     @objc private func clearTapped() { onClear?() }
+}
+
+/// A scroll view that hands its layout pass to its owner.
+private final class TextArea: UIScrollView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
+    }
 }
