@@ -71,19 +71,17 @@ xcode-select -p
 
 Last updated 2026-09-21, end of the first Xcode session.
 
-- **Done:** milestones 1–5 in code. Milestones 2 and 3 verified on an iPad and in
-  the simulator. Milestones 4 and 5 (image grid, hold-for-printings, tap-to-copy)
-  are built and were seen working in the simulator; the paste itself is not yet
-  verified on hardware because the simulator's clipboard bridge is unreliable
-  for images.
+- **Done:** milestones 1–5, verified end to end on the developer's iPhone via
+  TestFlight on 2026-09-22: search, grid, tap-to-copy, and paste into a real
+  chat all work. The "it works" moment has happened.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
 - **Green:** 99 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Next, in order:**
-  1. Confirm paste into WhatsApp and iMessage on the iPhone (milestone 5's
-     "it works" moment). Fix whatever that turns up.
+  1. Work through the developer's own issue list from the first phone session
+     (they keep it; ask for it).
   2. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
      attribution screen. The bones exist in `ios/Scryboard/ContentView.swift`.
@@ -272,9 +270,7 @@ Extension facts to design around:
    `ImageStore`) + `ResultsView`/`CardCell` in the extension; paging via
    `ResultsPager`; empty state = recents (`RecentCards`) or the most popular
    cards (`game:paper` by EDHREC rank).
-5. **Tap-to-copy** — done in code (`ImageStore.imageData` → `UIPasteboard`,
-   `ToastView`). Still to verify: paste into WhatsApp and iMessage on a device.
-   ← the "it works" moment.
+5. ~~**Tap-to-copy**~~ — done and verified on an iPhone on 2026-09-22.
 6. **Container app onboarding + attribution screen.**
 7. **Polish** — double-faced flip control (model side done: `Card.hasDistinctFaceImages`,
    `imageURL(_:face:)`); error and offline states rendered (`SearchOutcome`,
