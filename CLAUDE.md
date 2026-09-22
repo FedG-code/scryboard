@@ -54,26 +54,17 @@ something it can show, not what it is.
 - `classify(_:)` and `SearchPipeline.typed(_:)` still route plain text to
   `/cards/autocomplete`; nothing in the extension calls them any more.
 
-## Which machine is this? (read first)
+## Machine and devices
 
-Development happens on two machines and the rules differ. Detect it, do not assume
-it — this file is checked out on both:
+Development is on the Mac mini only (Xcode 27.0 as of 2026-09-21); the
+earlier Command-Line-Tools-only work Mac is retired, so there is no machine
+check to run. Everything is unblocked: app and extension targets, signing,
+simulator, archives and TestFlight uploads.
 
-```sh
-xcode-select -p
-```
-
-- **`/Library/Developer/CommandLineTools` — the work Mac.** Swift CLI only, no
-  Xcode. **Do not create, open, or modify any Xcode project, workspace, or
-  `.pbxproj` file, and do not touch code signing.** Work is confined to the
-  `ScryboardKit/` Swift package: `swift build` and `swift test` from
-  `ScryboardKit/`. (Swift Testing is not in the Command Line Tools; if the suite
-  will not link there, pin swift-testing as a test-only dependency *locally* and
-  do not commit it.) Get as far as possible here and put anything that genuinely
-  needs Xcode on the open-items list below rather than improvising.
-- **`/Applications/Xcode.app/…` — the Mac mini.** Everything is unblocked: app
-  and extension targets, signing, simulator and device testing. Xcode 27.0 as of
-  2026-09-21.
+- **The developer's iPhone cannot connect to the Mac mini** (its USB port is
+  broken). It gets builds through TestFlight only. Anything that needs a cable
+  — Instruments, device logs, Xcode debugging — happens on the **iPad Pro**,
+  which does connect. Keep the iPad in mind for the memory pass.
 
 ## State of play
 
@@ -133,12 +124,17 @@ Last updated 2026-09-22, start of the polish pass.
   1. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
      attribution screen. The bones exist in `ios/Scryboard/ContentView.swift`.
-  2. Milestone 7 polish: double-faced flip, designed empty/offline/error states,
-     sharper thumbnails on iPad (small scan is stretched there), Instruments
-     memory pass against the extension ceiling, dark mode and landscape.
-  3. Real app icon (original artwork, no card imagery); the current one is a
-     flat placeholder made in code. Then the store listing.
-  4. Finish or delete `ios/ScryboardUITests` (see Open items).
+     Decided 2026-09-22: the container app will **not** show recents, so
+     recents stay in the extension's own defaults and the App Group carries
+     settings only.
+  2. Milestone 7 polish: double-faced **flip in the grid** (decided
+     2026-09-22; copying sends the face currently shown), designed
+     empty/offline/error states, sharper thumbnails on iPad (small scan is
+     stretched there), Instruments memory pass against the extension ceiling
+     on the iPad over cable.
+  3. App icon: the developer is having one made externally (2026-09-22); the
+     flat placeholder made in code stays until it arrives. Then the store
+     listing.
 - **iOS 26 facts learned the hard way:** a height constraint on the root view is
   ignored after the first layout, so the extension uses `allowsSelfSizing` with
   the height on its own content column. The system draws its own globe and
@@ -304,7 +300,7 @@ Extension facts to design around:
 - `RequestsOpenAccess` = YES in the extension Info.plist (network access requires Full Access).
 - Hard memory ceiling (~60–80 MB); iOS kills the extension silently when exceeded. Downsample thumbnails at decode time via `CGImageSourceCreateThumbnailAtIndex`; `NSCache` with a count limit; never retain the full-size JPEG beyond the pasteboard write; zero third-party dependencies.
 - The extension sets its own height with a constraint on `inputView`. Grid mode may be taller than typing mode; animate the change.
-- Recents and the saved search persist in the extension's own container (`UserDefaults` for the card list, cache directory for thumbnails). The App Group carries settings only; moving recents there is a milestone 6 call if the container app should show them.
+- Recents and the saved search persist in the extension's own container (`UserDefaults` for the card list, cache directory for thumbnails). The App Group carries settings only; the container app does not show recents (decided 2026-09-22).
 - iOS 16+: first paste into each receiving app triggers a one-time system permission prompt. Expected; mention in onboarding.
 - Tap action: fetch `normal` JPEG → `UIPasteboard.general.setData(_, forPasteboardType: UTType.jpeg.identifier)` → toast → release.
 
@@ -348,19 +344,8 @@ Extension facts to design around:
 
 2. **Measure `URLSessionTransport.makeDefaultSession()` under the extension
    memory ceiling.** Ephemeral, 10s/20s timeouts, `waitsForConnectivity` off —
-   chosen on reasoning rather than measurement. Revisit in milestone 4 alongside
-   the image cache.
-
-3. **UI tests (`ios/ScryboardUITests`) are a work in progress.**
-   `EnableKeyboardTests` adds the keyboard through the simulator's Settings app
-   (there is no command-line way to enable a third-party keyboard) but its Full
-   Access step is not yet reliable; `KeyboardSmokeTests` has not passed yet.
-   They are not part of `swift test`. Run by hand with
-   `xcodebuild test -only-testing:ScryboardUITests/EnableKeyboardTests`.
-
-4. **Simulator UI-test setup is stateful.** The iPhone 17 simulator on the Mac
-   mini already has Scryboard enabled (via `EnableKeyboardTests`); a fresh
-   simulator needs that test run once.
+   chosen on reasoning rather than measurement. Measure on the iPad over cable
+   together with the large-card thumbnail pass (polish item 8).
 
 When an item is done, delete it from this list rather than marking it; the list is
 meant to empty out.

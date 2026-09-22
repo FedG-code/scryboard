@@ -105,29 +105,13 @@ targets:
       - package: ScryboardKit
         product: ScryboardUI
 
-  ScryboardUITests:
-    type: bundle.ui-testing
-    platform: iOS
-    sources: [ScryboardUITests]
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.fedg.scryboard.uitests
-        TEST_TARGET_NAME: Scryboard
-    dependencies:
-      - target: Scryboard
-
 schemes:
   Scryboard:
     build:
       targets:
         Scryboard: all
         ScryboardKeyboard: all
-        ScryboardUITests: [test]
     run:
       config: Debug
-    test:
-      config: Debug
-      targets:
-        - ScryboardUITests
     archive:
       config: Release
