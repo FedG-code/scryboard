@@ -247,11 +247,15 @@ xcodebuild -exportArchive -archivePath /tmp/Scryboard.xcarchive -exportOptionsPl
 ```
 
 Apple's "build processed" email is unreliable; check the TestFlight tab in App
-Store Connect instead. External testing (friends, public link) needs Beta App
-Review: the form's contact details are the developer's own, for the reviewer;
-the description is what testers see; review notes should say the keyboard needs
-Full Access only to reach the Scryfall API and collects nothing. Hold external
-testing until milestone 6 gives the reviewer a real onboarding screen.
+Store Connect instead. **Friends test as internal testers**: on 2026-09-22 the
+developer invited them to the App Store Connect team with the Developer role
+so they skip Beta App Review. Each must accept the team email, then be ticked
+into the internal group under TestFlight › Testers, and sign in to TestFlight
+with the same Apple ID. Builds then reach them automatically on every upload.
+External testing (public link) would need Beta App Review: contact details are
+the developer's own, the description is what testers see, review notes should
+say the keyboard needs Full Access only to reach the Scryfall API and collects
+nothing. Not needed while testers fit in the internal group (limit 100).
 
 `ios/ExportOptions.plist` uses `method: app-store-connect`, `destination: upload`
 and `manageAppVersionAndBuildNumber: true`, so build numbers are bumped by
