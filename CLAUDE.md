@@ -349,6 +349,29 @@ Extension facts to design around:
    chosen on reasoning rather than measurement. Measure on the iPad over cable
    together with the large-card thumbnail pass (polish item 8).
 
+3. **A TestFlight tester stuck on "No Builds Available" (2026-09-22).** Two
+   of the four internal testers show a red "No Builds Available" in Group 1
+   while the developer and one friend installed 1.0 (2) fine, so the build and
+   the group are not the problem. One of the stuck testers had first hit
+   "Unable to install Scryboard" on his phone, tapped Stop Testing in
+   TestFlight, and his old invite link then stopped working. Ruled out so
+   far: he is an accepted team member (not pending), his Apple ID is in the
+   right country, iOS 26.6. Removing and re-adding him to the group changes
+   nothing and sends no email, because App Store Connect sends the invite
+   only to testers it considers eligible. Both stuck rows show dashes in the
+   device columns where the working testers show a phone model, so the
+   working theory is that TestFlight has no device linked to those Apple IDs
+   (Stop Testing drops the link; the other tester has never opened
+   TestFlight). Untried, in order: (1) on his phone delete any leftover
+   Scryboard icon, open TestFlight signed in as the invited Apple ID, pull to
+   refresh — internal testers see their apps without an invite; (2) delete
+   and reinstall TestFlight, sign in again; (3) a fresh internal group with
+   automatic distribution containing only him. If all three fail, the next
+   suspects are Pricing and Availability territories for the app record and
+   the tester's app access under Users and Access. The "Unable to install"
+   error itself is usually a half-installed leftover copy, a signing clash
+   with a non-TestFlight install, or a bad download; delete, restart, retry.
+
 When an item is done, delete it from this list rather than marking it; the list is
 meant to empty out.
 
