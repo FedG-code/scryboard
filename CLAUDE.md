@@ -79,7 +79,7 @@ Last updated 2026-09-22, start of the polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 111 tests across 14 suites, no warnings, Swift 6 language mode,
+- **Green:** 108 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
@@ -117,7 +117,8 @@ Last updated 2026-09-22, start of the polish pass.
      routes: a segmented control in the app and a pinch on the grid (one step
      per pinch, saved to the same preference). Keyboard height unchanged;
      target cell widths 88 / 118 / 172 pt give 4 / 3 / 2 columns on a phone.
-     Large loads the `normal` scan, decoded at cell size, so memory per
+     Medium and large load the `normal` scan (medium joined large on
+     2026-09-22; small stays on `small`), decoded at cell size, so memory per
      thumbnail is bounded by the cell, not the scan; the network and disk
      cost per card is roughly ten times higher. **Still to measure:** large
      cards with a big result set (`t:creature`, all Mountain printings) in

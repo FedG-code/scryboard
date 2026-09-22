@@ -2,8 +2,9 @@ import UIKit
 import ScryboardKit
 import ScryboardUI
 
-/// The card grid. Cells show Scryfall's `small` scan, decoded at cell size
-/// through `ImageStore` so the extension stays far under its memory ceiling.
+/// The card grid. Cells show the scan the card size calls for (`small` for
+/// small cells, `normal` otherwise), decoded at cell size through
+/// `ImageStore` so the extension stays far under its memory ceiling.
 final class ResultsView: UIView {
     enum Status {
         case hint(String)
