@@ -1,0 +1,321 @@
+<!doctype html>
+<!--
+  Scryboard prototype: three ways out of the printings view (2026-09-22).
+  Open this file in a browser. Thumbnails are Scryfall's small scans,
+  loaded live from cards.scryfall.io; nothing is stored in the repo.
+  The keyboard ships option B (floating button). A and C are kept here
+  so feedback can be compared against real layouts.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Printings Back Button</title>
+<style>
+:root{
+  --bg:#f4f3ef; --ink:#1b1b1f; --muted:#6a6a72; --line:#dcdad3; --panel:#ffffff;
+  --accent:#2f6df6; --tab-bg:#e9e7e0;
+  --kb:#1c1c1e; --kb-key:#3a3a3c; --kb-fn:#2a2a2c; --kb-pill:#2c2c2e; --kb-ink:#f2f2f7; --kb-muted:#8e8e93; --kb-tint:#5aa0ff; --kb-chat:#000;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141416; --ink:#ececf0; --muted:#9a9aa3; --line:#2b2b31; --panel:#1d1d21; --tab-bg:#232328; }}
+:root[data-theme="dark"]{ --bg:#141416; --ink:#ececf0; --muted:#9a9aa3; --line:#2b2b31; --panel:#1d1d21; --tab-bg:#232328; }
+html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;}
+body{margin:0;padding-block:28px 48px;padding-inline:16px;line-height:1.45}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+p.lead{color:var(--muted);margin:0 0 20px;max-width:60ch}
+.tabs{display:flex;gap:6px;background:var(--tab-bg);padding:4px;border-radius:12px;margin-bottom:18px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;padding:9px 6px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.stage{display:flex;justify-content:center}
+.phone{width:393px;max-width:100%;background:var(--kb-chat);border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--kb-ink);position:relative;user-select:none;-webkit-user-select:none}
+.chat{height:96px;padding:14px 12px 0;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
+.bubble{align-self:flex-end;background:#1f5b3f;color:#fff;font-size:14px;padding:7px 10px;border-radius:12px;max-width:70%}
+.compose{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#0f0f10}
+.compose .plus{font-size:22px;color:#fff;width:22px;text-align:center}
+.compose .field{flex:1;height:34px;border-radius:17px;background:#1e1e20;position:relative}
+.compose .field::after{content:"";position:absolute;left:12px;top:8px;width:2px;height:18px;background:#34c759}
+.compose .mic{width:34px;height:34px;border-radius:17px;background:#34c759}
+.kb{background:var(--kb);height:320px;position:relative;display:flex;flex-direction:column}
+.pill{margin:6px 8px;height:36px;border-radius:10px;background:var(--kb-pill);display:flex;align-items:center;padding:0 6px 0 10px;gap:6px;font-size:17px}
+.pill .glyph{width:20px;height:20px;color:var(--kb-muted);flex:none}
+.pill .q{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill .clear{width:22px;height:22px;border-radius:11px;background:#4a4a4e;color:#1c1c1e;font-size:13px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.pill .backchip{display:none;flex:none;align-items:center;gap:2px;color:var(--kb-tint);font-size:15px;font-weight:600;cursor:pointer;padding:2px 4px;border-radius:6px}
+.pill .backchip:hover{background:rgba(90,160,255,.12)}
+.gridwrap{flex:1;position:relative;overflow:hidden}
+.grid{position:absolute;inset:0;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start}
+.grid.header-on{top:36px}
+.card{aspect-ratio:5/7;border-radius:6px;overflow:hidden;background:#2a2a2c;cursor:pointer;transition:transform .12s}
+.card img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.card:active{transform:scale(.96)}
+.card.hint{outline:2px solid var(--kb-tint);outline-offset:-2px}
+.hdr{position:absolute;left:0;right:0;top:0;height:36px;display:none;align-items:center;gap:6px;padding:0 10px 0 6px;background:var(--kb);border-bottom:1px solid rgba(255,255,255,.08);font-size:14px;z-index:2}
+.hdr .back{display:flex;align-items:center;gap:2px;color:var(--kb-tint);font-weight:600;cursor:pointer;padding:4px 6px 4px 2px;border-radius:6px;background:transparent;border:0;font:inherit;font-size:15px}
+.hdr .back:hover{background:rgba(90,160,255,.12)}
+.hdr .title{flex:1;color:var(--kb-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr .title b{color:var(--kb-ink);font-weight:600}
+.fab{position:absolute;right:12px;bottom:12px;display:none;align-items:center;gap:6px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(58,58,60,.92);color:var(--kb-ink);font:inherit;font-size:14px;font-weight:600;border:0;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.45);z-index:2;backdrop-filter:blur(8px)}
+.fab:hover{background:rgba(72,72,74,.95)}
+.toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.82);color:#fff;padding:9px 14px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:3;white-space:nowrap;max-width:85%;overflow:hidden;text-overflow:ellipsis}
+.toast.on{opacity:1}
+.sysbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:#fff;background:var(--kb)}
+.sysbar svg{width:26px;height:26px}
+.phone.opt-header .hdr{display:flex}
+.phone.opt-fab .fab{display:flex}
+.phone.opt-pill .backchip{display:flex}
+.phone.opt-pill .glyph.search{display:none}
+.phone.opt-header .grid.printings{top:36px}
+.notes{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.notes h2{font-size:15px;margin:0 0 8px}
+.notes ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+.notes li{margin:4px 0}
+.notes li b{color:var(--ink);font-weight:600}
+.status{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;background:var(--panel)}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.card,.toast{transition:none}}
+</style>
+</head><body>
+<div class="wrap">
+  <h1>Printings Back Button</h1>
+  <p class="lead">Three ways out of the printings view. Tap any card in the grid to stand in for a long press; the pill keeps the original query throughout. Each option is a real layout at iPhone width, inside the 320 pt keyboard.</p>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-header" aria-selected="true" data-opt="header">A · Header row</button>
+    <button role="tab" id="tab-fab" aria-selected="false" data-opt="fab">B · Floating button</button>
+    <button role="tab" id="tab-pill" aria-selected="false" data-opt="pill">C · Back in the pill</button>
+  </div>
+  <div class="stage">
+    <div class="phone opt-header" id="phone">
+      <div class="chat"><div class="bubble">Also we playing Friday?</div><div class="bubble">Nope bit spenny</div></div>
+      <div class="compose"><div class="plus">+</div><div class="field"></div><div class="mic"></div></div>
+      <div class="kb">
+        <div class="pill">
+          <span class="backchip" id="chip" title="Back to results"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span>
+          <svg class="glyph search i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <span class="q" id="q">lightning</span>
+          <span class="clear">×</span>
+        </div>
+        <div class="gridwrap">
+          <div class="hdr" id="hdr"><button class="back" id="hdrback"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Back</button><span class="title" id="hdrtitle"></span></div>
+          <div class="grid" id="grid"></div>
+          <button class="fab" id="fab"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
+          <div class="toast" id="toast"></div>
+        </div>
+      </div>
+      <div class="sysbar"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+    </div>
+  </div>
+  <div class="status" id="status">Results for <b>lightning</b>. Tap a card to open its printings.</div>
+  <div class="notes" id="notes"></div>
+</div>
+<script>
+const DATA={
+"results": [
+{
+"name": "Lightning Greaves",
+"set": "Marvel Super Heroes Commander",
+"src": "https://cards.scryfall.io/small/front/b/6/b61634ae-05be-4b56-8ebb-9d4ade902e42.jpg?1783903217"
+},
+{
+"name": "Lightning Bolt",
+"set": "Marvel Super Heroes Commander",
+"src": "https://cards.scryfall.io/small/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008"
+},
+{
+"name": "Redirect Lightning",
+"set": "Avatar: The Last Airbender",
+"src": "https://cards.scryfall.io/small/front/2/b/2b5b14a7-1fdd-4efc-b197-cadfa7f7c860.jpg?1783904953"
+},
+{
+"name": "Isshin, Two Heavens as One",
+"set": "Final Fantasy: Through the Ages",
+"src": "https://cards.scryfall.io/small/front/a/3/a3baaf97-171a-40c0-a1dc-74ae05db0e25.jpg?1783906378"
+},
+{
+"name": "Lightning Strike",
+"set": "Marvel Super Heroes",
+"src": "https://cards.scryfall.io/small/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.jpg?1783902927"
+},
+{
+"name": "Lightning, Army of One",
+"set": "Final Fantasy",
+"src": "https://cards.scryfall.io/small/front/1/1/1103da9c-300c-406b-997d-9e5bb7cd02d6.jpg?1783906566"
+},
+{
+"name": "Lightning Helix",
+"set": "Murders at Karlov Manor",
+"src": "https://cards.scryfall.io/small/front/4/1/4101e3fe-b0e7-4f0f-b9ac-9b61a4d628b3.jpg?1783912843"
+},
+{
+"name": "Lightning Runner",
+"set": "Aether Revolt",
+"src": "https://cards.scryfall.io/small/front/e/5/e5d9c7eb-dca4-4471-a91f-a5aad3a69c2f.jpg?1783936753"
+},
+{
+"name": "Burst Lightning",
+"set": "Foundations",
+"src": "https://cards.scryfall.io/small/front/a/e/aec5d380-d354-4750-931a-6c91853e2edc.jpg?1783909068"
+},
+{
+"name": "Chain Lightning",
+"set": "Dominaria Remastered",
+"src": "https://cards.scryfall.io/small/front/2/1/2105a0d9-ea2e-4ffc-be08-424b5617205d.jpg?1783918467"
+},
+{
+"name": "Lightning Axe",
+"set": "Innistrad Remastered",
+"src": "https://cards.scryfall.io/small/front/9/0/90911c79-24c3-4566-b72c-02ccde083f1b.jpg?1783908116"
+},
+{
+"name": "Emeritus of Conflict // Lightning Bolt",
+"set": "Secrets of Strixhaven",
+"src": "https://cards.scryfall.io/small/front/f/5/f58dba4f-1abb-47a3-a684-29c32bab95c0.jpg?1783903670"
+},
+{
+"name": "Vow of Lightning",
+"set": "Murders at Karlov Manor Commander",
+"src": "https://cards.scryfall.io/small/front/a/0/a0742d43-8a67-4485-b0ce-5a4e057fa915.jpg?1783912994"
+},
+{
+"name": "Wizard's Lightning",
+"set": "Dominaria",
+"src": "https://cards.scryfall.io/small/front/5/9/59bf371a-164c-4db8-9207-197c2e7c3c10.jpg?1783934984"
+},
+{
+"name": "Ball Lightning",
+"set": "Foundations",
+"src": "https://cards.scryfall.io/small/front/5/f/5f27dbf0-6818-40ea-832d-10686b4c2900.jpg?1783908925"
+}
+],
+"printings": [
+{
+"name": "Lightning Bolt",
+"set": "The List",
+"src": "https://cards.scryfall.io/small/front/1/3/132dc07f-74e2-4bd7-bdb1-4f5d5253c7f2.jpg?1787678033"
+},
+{
+"name": "Lightning Bolt",
+"set": "Foundations Commander",
+"src": "https://cards.scryfall.io/small/front/0/8/0852f9f3-d7ef-4d31-93e3-93bc7c5a4ec9.jpg?1789753088"
+},
+{
+"name": "Lightning Bolt",
+"set": "The Zeta Set",
+"src": "https://cards.scryfall.io/small/front/0/e/0ef3c273-ec92-41d0-9abe-0f99e33db4f5.jpg?1787745710"
+},
+{
+"name": "Lightning Bolt",
+"set": "The Zeta Set",
+"src": "https://cards.scryfall.io/small/front/d/1/d1f67dc6-473c-4c98-bd03-cd1e53acb7e1.jpg?1787745713"
+},
+{
+"name": "Lightning Bolt",
+"set": "The Zeta Set",
+"src": "https://cards.scryfall.io/small/front/2/c/2c025b3b-a3b4-4399-9173-b855a9473b36.jpg?1787745711"
+},
+{
+"name": "Lightning Bolt",
+"set": "Secret Lair Drop",
+"src": "https://cards.scryfall.io/small/front/a/0/a050f085-dc6a-4715-8cd3-33daf3e27bfc.jpg?1788258622"
+},
+{
+"name": "Lightning Bolt",
+"set": "Marvel Super Heroes Commander",
+"src": "https://cards.scryfall.io/small/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008"
+},
+{
+"name": "Emeritus of Conflict // Lightning Bolt",
+"set": "Secrets of Strixhaven Promos",
+"src": "https://cards.scryfall.io/small/front/6/9/699c0207-901e-4fe9-b22d-1f6cb994a1f2.jpg?1783903545"
+},
+{
+"name": "Emeritus of Conflict // Lightning Bolt",
+"set": "Secrets of Strixhaven",
+"src": "https://cards.scryfall.io/small/front/f/1/f11b8d24-375d-40dc-8497-c1ee779e156a.jpg?1783903593"
+},
+{
+"name": "Emeritus of Conflict // Lightning Bolt",
+"set": "Secrets of Strixhaven",
+"src": "https://cards.scryfall.io/small/front/f/5/f58dba4f-1abb-47a3-a684-29c32bab95c0.jpg?1783903670"
+},
+{
+"name": "Lightning Bolt",
+"set": "Secret Lair Drop",
+"src": "https://cards.scryfall.io/small/front/b/d/bde26955-6de3-4212-9e1a-5e11f73ebf44.jpg?1783903996"
+},
+{
+"name": "Lightning Bolt",
+"set": "Secret Lair Drop",
+"src": "https://cards.scryfall.io/small/front/d/c/dc12105d-7536-429b-9510-4f56bfc0c497.jpg?1783904004"
+},
+{
+"name": "Lightning Bolt",
+"set": "Wizards Play Network 2026",
+"src": "https://cards.scryfall.io/small/front/b/6/b6bc6ff3-f466-4cb0-8b4e-a20d8ed129c8.jpg?1783904637"
+},
+{
+"name": "Lightning Bolt",
+"set": "Avatar: The Last Airbender Eternal",
+"src": "https://cards.scryfall.io/small/front/6/8/6881d7c8-5bb7-4f8c-9f03-50fb1309d9c8.jpg?1783904851"
+},
+{
+"name": "Lightning Bolt",
+"set": "Secret Lair Drop",
+"src": "https://cards.scryfall.io/small/front/3/c/3c738171-d0dc-4cc2-8af8-1d306143db37.jpg?1783905090"
+}
+]
+};
+</script>
+<script>
+const NOTES={
+ header:`<h2>A · Header row above the grid</h2><ul>
+  <li><b>Where it lives:</b> a 36 pt strip between the pill and the grid, only while printings are shown. The grid loses one row of thumbnails.</li>
+  <li><b>Says what you are looking at:</b> the card name stays visible while you scroll, which the toast alone does not do.</li>
+  <li><b>Costs:</b> the grid jumps down 36 pt on entry and back up on exit. Feels like the emoji keyboard's category header.</li>
+  <li><b>Build:</b> one view in the browsing stack, hidden by default. Half a day including the animation.</li></ul>`,
+ fab:`<h2>B · Floating button, bottom right</h2><ul>
+  <li><b>Where it lives:</b> hovers over the grid, above the scroll, only while printings are shown. No grid space lost.</li>
+  <li><b>Thumb reach:</b> bottom right is the easiest spot on a phone held one-handed, and it is where the eye goes after a long press.</li>
+  <li><b>Costs:</b> covers the corner of the bottom-right card until you scroll past it. The card name is only in the toast, so after it fades nothing says which card these are.</li>
+  <li><b>Build:</b> one button over the collection view. A few hours.</li></ul>`,
+ pill:`<h2>C · Back chevron in the pill</h2><ul>
+  <li><b>Where it lives:</b> replaces the magnifier at the left of the pill while printings are shown. Nothing moves and nothing is covered.</li>
+  <li><b>Costs:</b> the smallest target of the three and easy to miss; the pill already means "tap to type", so a second action inside it is ambiguous. Shown for comparison mostly.</li>
+  <li><b>Build:</b> a state on the search bar view. An hour.</li></ul>`
+};
+const $=id=>document.getElementById(id);
+let view='results', opt='header', toastTimer;
+function render(){
+  const list=view==='results'?DATA.results:DATA.printings;
+  const grid=$('grid');
+  grid.className='grid '+view;
+  grid.innerHTML=list.map((c,i)=>`<div class="card" data-i="${i}" title="${c.name} · ${c.set}"><img src="${c.src}" alt="${c.name}, ${c.set}"></div>`).join('');
+  grid.scrollTop=0;
+  const printing=view==='printings';
+  $('hdr').style.display=(printing&&opt==='header')?'flex':'none';
+  $('fab').style.display=(printing&&opt==='fab')?'flex':'none';
+  $('chip').style.display=(printing&&opt==='pill')?'flex':'none';
+  document.querySelector('.glyph.search').style.display=(printing&&opt==='pill')?'none':'block';
+  $('hdrtitle').innerHTML='All printings of <b>Lightning Bolt</b>';
+  $('status').innerHTML=printing?'All printings of <b>Lightning Bolt</b>, newest first. Use the Back control to return to <b>lightning</b>.':'Results for <b>lightning</b>. Tap a card to open its printings.';
+  $('notes').innerHTML=NOTES[opt];
+}
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1400);}
+$('grid').addEventListener('click',e=>{
+  const card=e.target.closest('.card'); if(!card) return;
+  if(view==='results'){view='printings';render();toast('All printings of Lightning Bolt');}
+  else{toast('Copied');}
+});
+function back(){view='results';render();}
+$('hdrback').onclick=back; $('fab').onclick=back; $('chip').onclick=back;
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  opt=b.dataset.opt;
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  $('phone').className='phone opt-'+opt;
+  try{localStorage.setItem('opt',opt)}catch(e){}
+  render();
+});
+try{const s=localStorage.getItem('opt'); if(s&&NOTES[s]){opt=s;document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x.dataset.opt===s));$('phone').className='phone opt-'+s;}}catch(e){}
+render();
+</script>
+</body></html>

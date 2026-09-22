@@ -39,7 +39,9 @@ something it can show, not what it is.
 - **Hold a card → every printing of it**, newest first, in the same grid. That
   is the printing picker; tapping a suggested name does the same.
 - `screenshots/` at the repo root is gitignored: keep local screenshots there,
-  never in the repo.
+  never in the repo. `docs/prototypes/` holds HTML mock-ups of UI options that
+  were compared before a decision; thumbnails there hotlink Scryfall, never
+  embed images.
 - **No Full Access → no network.** `hasFullAccess == false` replaces the grid
   with a short "turn on Full Access in Settings" explainer. Nothing else works
   without it, so nothing else is shown.
@@ -100,11 +102,15 @@ Last updated 2026-09-22, start of the polish pass.
      feels cramped.
   5. ~~Smaller key glyphs, unlabelled space bar, return symbol for search~~ —
      done, awaiting confirmation.
-  6. **Way back out of the printings view.** Prototype options as artifacts
-     first. Candidates: a header above the grid ("All printings of X" + Back)
-     and a floating Back button bottom-right over the grid. One level of
-     history is enough (nothing goes deeper than printings). While in the
-     printings view the pill keeps the *original query*, not the card name.
+  6. ~~Way back out of the printings view~~ — done 2026-09-22 with option B, a
+     floating "Back" capsule bottom-right over the grid, shown only while
+     printings fill it. The pill keeps the query the user typed; Back re-runs
+     it (or shows the empty state if nothing was typed). One level of history.
+     `SavedSearch` stores query and printings name together, so a restored
+     keyboard comes back in the printings view with Back still available. The
+     developer is gathering feedback; options A (header row above the grid)
+     and C (chevron in the pill) live in `docs/prototypes/printings-back.html`
+     with a tab switcher, open it in a browser to compare.
   7. **Sort order setting in the container app.** All Scryfall orders offered
      (name, set, released, rarity, color, usd, eur, tix, cmc, power,
      toughness, edhrec, penny, artist, review), direction as a second option,

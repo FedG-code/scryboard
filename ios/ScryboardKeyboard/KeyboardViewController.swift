@@ -16,6 +16,8 @@ final class KeyboardViewController: UIInputViewController {
     private let searchBar = SearchBarView()
     private let resultsView = ResultsView()
     private let browseToolbar = BrowseToolbarView()
+    /// Floats over the grid while printings are shown. The one way back.
+    private let backButton = UIButton(configuration: .filled())
     private let keyboardView = KeyboardView()
     private let fullAccessNotice = UILabel()
     private let toast = ToastView()
@@ -26,7 +28,10 @@ final class KeyboardViewController: UIInputViewController {
     private var heightConstraint: NSLayoutConstraint?
 
     private var mode: Mode = .browsing
+    /// What the user typed. Stays in the pill while printings are shown.
     private var query = ""
+    /// The held card whose printings fill the grid, if any.
+    private var printings: String?
     private var keyboardState = KeyboardState()
     private let client = ScryfallClient()
     private lazy var pipeline = SearchPipeline(client: client)
@@ -91,6 +96,27 @@ final class KeyboardViewController: UIInputViewController {
         height.priority = UILayoutPriority(999)
         heightConstraint = height
 
+        var back = backButton.configuration ?? .filled()
+        back.cornerStyle = .capsule
+        back.image = UIImage(systemName: "chevron.left")
+        back.imagePadding = 4
+        back.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        back.attributedTitle = AttributedString("Back", attributes: AttributeContainer([
+            .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+        ]))
+        back.baseBackgroundColor = .systemFill
+        back.baseForegroundColor = .label
+        back.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 14)
+        backButton.configuration = back
+        backButton.layer.shadowColor = UIColor.black.cgColor
+        backButton.layer.shadowOpacity = 0.35
+        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        backButton.layer.shadowRadius = 5
+        backButton.accessibilityLabel = "Back to search results"
+        backButton.isHidden = true
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(backButton)
+
         toast.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(toast)
 
@@ -100,6 +126,9 @@ final class KeyboardViewController: UIInputViewController {
             column.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             column.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             column.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            // Bottom right, where the thumb already is after a long press.
+            backButton.trailingAnchor.constraint(equalTo: resultsView.trailingAnchor, constant: -12),
+            backButton.bottomAnchor.constraint(equalTo: resultsView.bottomAnchor, constant: -12),
             toast.centerXAnchor.constraint(equalTo: resultsView.centerXAnchor),
             toast.centerYAnchor.constraint(equalTo: resultsView.centerYAnchor),
             toast.widthAnchor.constraint(lessThanOrEqualTo: resultsView.widthAnchor, constant: -40),
@@ -109,6 +138,7 @@ final class KeyboardViewController: UIInputViewController {
     private func wireActions() {
         searchBar.onTap = { [weak self] in self?.apply(mode: .typing, animated: true) }
         searchBar.onClear = { [weak self] in self?.clearQuery() }
+        backButton.addAction(UIAction { [weak self] _ in self?.leavePrintings() }, for: .touchUpInside)
 
         // iOS 26 draws its own globe under third-party keyboards; older
         // systems expect the keyboard to provide one.
@@ -165,6 +195,7 @@ final class KeyboardViewController: UIInputViewController {
             self.browsingStack.isHidden = mode == .typing
             self.typingStack.isHidden = mode == .browsing
             self.searchBar.isEditing = mode == .typing
+            self.backButton.isHidden = mode == .typing || self.printings == nil
         }
         if animated {
             UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState], animations: changes)
@@ -182,6 +213,7 @@ final class KeyboardViewController: UIInputViewController {
         fullAccessNotice.isHidden = allowed
         searchBar.isUserInteractionEnabled = allowed
         resultsView.isHidden = !allowed
+        backButton.isHidden = !allowed || mode == .typing || printings == nil
         if !allowed, mode == .typing {
             apply(mode: .browsing, animated: false)
         }
@@ -220,27 +252,47 @@ final class KeyboardViewController: UIInputViewController {
 
     private func commitSearch() {
         let current = query
+        printings = nil
         apply(mode: .browsing, animated: true)
-        guard !current.isEmpty else { return }
-        SavedSearch.remember(.query, current)
+        SavedSearch.remember(query: current, printings: nil)
+        guard !current.isEmpty else {
+            showEmptyState()
+            return
+        }
         Task { await pipeline.search(current) }
     }
 
     private func clearQuery() {
         query = ""
         searchBar.query = ""
+        printings = nil
+        backButton.isHidden = true
         SavedSearch.clear()
         Task { await pipeline.cancel() }
     }
 
     /// Every printing of a card, newest first. Commander players care which
-    /// art they send. Reached by holding a card.
+    /// art they send. Reached by holding a card. The pill keeps the query the
+    /// user typed; the floating Back button returns to it.
     private func showPrintings(of card: Card) {
-        query = card.name
-        searchBar.query = card.name
+        printings = card.name
+        backButton.isHidden = false
         toast.show("All printings of \(card.name)")
-        SavedSearch.remember(.printings, card.name)
+        SavedSearch.remember(query: query, printings: card.name)
         Task { await pipeline.searchExact(name: card.name) }
+    }
+
+    /// Back from the printings view to whatever filled the grid before it.
+    private func leavePrintings() {
+        printings = nil
+        backButton.isHidden = true
+        SavedSearch.remember(query: query, printings: nil)
+        let current = query
+        if current.isEmpty {
+            showEmptyState()
+        } else {
+            Task { await pipeline.search(current) }
+        }
     }
 
     /// The host rebuilds the keyboard on every dismissal, and pasting a copied
@@ -250,13 +302,14 @@ final class KeyboardViewController: UIInputViewController {
             showEmptyState()
             return
         }
-        query = saved.text
-        searchBar.query = saved.text
-        Task {
-            switch saved.kind {
-            case .query: await pipeline.search(saved.text)
-            case .printings: await pipeline.searchExact(name: saved.text)
-            }
+        query = saved.query
+        searchBar.query = saved.query
+        printings = saved.printings
+        backButton.isHidden = saved.printings == nil
+        if let name = saved.printings {
+            Task { await pipeline.searchExact(name: name) }
+        } else {
+            Task { await pipeline.search(saved.query) }
         }
     }
 

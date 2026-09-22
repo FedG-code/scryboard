@@ -5,18 +5,14 @@ import Foundation
 /// card dismisses it, so without this the grid reset to recents after each
 /// copy. Expires after ten minutes; the clear button removes it at once.
 ///
-/// Only the query is stored; results are fetched again on restore. Storing
+/// Only the queries are stored; results are fetched again on restore. Storing
 /// the first page as well would avoid a flicker and a request — a later pass.
 struct SavedSearch: Codable, Equatable {
-    enum Kind: String, Codable {
-        /// A query the user typed, run through `SearchPipeline.search(_:)`.
-        case query
-        /// A card name from a held card, run through `searchExact(name:)`.
-        case printings
-    }
-
-    var kind: Kind
-    var text: String
+    /// What the user typed. Stays in the pill even while printings are shown,
+    /// and is what Back returns to. Empty when the grid was recents.
+    var query: String
+    /// The held card whose printings fill the grid, if any.
+    var printings: String?
     var savedAt: Date
 
     static let lifetime: TimeInterval = 10 * 60
@@ -30,8 +26,12 @@ struct SavedSearch: Codable, Equatable {
         return saved
     }
 
-    static func remember(_ kind: Kind, _ text: String) {
-        let saved = SavedSearch(kind: kind, text: text, savedAt: Date())
+    static func remember(query: String, printings: String?) {
+        guard !query.isEmpty || printings != nil else {
+            clear()
+            return
+        }
+        let saved = SavedSearch(query: query, printings: printings, savedAt: Date())
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: key)
         }
