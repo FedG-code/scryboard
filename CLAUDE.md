@@ -31,11 +31,16 @@ something it can show, not what it is.
   Keystrokes send nothing; only the return key does. `SearchPipeline.typed(_:)`
   stays in the Kit for the Android port and the container app.
 - **The return key returns to grid mode** with results from `/cards/search`.
-- **The last search survives keyboard rebuilds.** The host tears the extension
-  down on every dismissal, and pasting dismisses it, so `SavedSearch` keeps the
-  committed query (or held card name) in `UserDefaults` for ten minutes and
-  re-runs it on launch. The clear button in the pill removes it. Only the query
-  is stored; caching the first page too is a later upgrade.
+- **The last search survives keyboard rebuilds, scroll position included.**
+  The host tears the extension down on every dismissal, and pasting dismisses
+  it, so `SavedSearch` keeps the committed query (or held card name) and the
+  index of the top visible card in `UserDefaults` for ten minutes after the
+  last activity, and `SavedResults` writes every page the pager loaded to one
+  file in the caches directory (`ResultsPager.snapshot`). On launch the grid
+  comes back from that file at the same card with no request and keeps paging
+  from where it stopped; if the file was purged the query is run again. The
+  clear button in the pill removes both. Positions are indices, not offsets,
+  so a change of card size does not lose the place.
 - **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied". Just that
   word: the longer "tap and hold to paste" read as an instruction for the
   keyboard itself and confused. The grid stays put; the card joins recents.
@@ -79,7 +84,7 @@ Last updated 2026-09-22, start of the polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 108 tests across 13 suites, no warnings, Swift 6 language mode,
+- **Green:** 110 tests across 13 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
@@ -89,8 +94,8 @@ Last updated 2026-09-22, start of the polish pass.
   2. ~~Caret sat too far right of the last letter~~ — fixed: custom stack
      spacing after the label. Awaiting confirmation on the phone.
   3. ~~Search reset to recents after every copy/paste or dismissal~~ — done via
-     `SavedSearch`, ten-minute lifetime, query re-run. Later upgrade: store the
-     first page as well so restoring neither flickers nor costs a request.
+     `SavedSearch`, ten-minute lifetime. Since 2026-09-22 the loaded pages
+     and scroll position are restored from disk too (see the UX model).
   4. ~~Suggestion strip out, syntax row in~~ — done (letters plane only; no
      tokens like `t:` for now). Rows shrank a little to fit; revisit if it
      feels cramped.
@@ -117,13 +122,18 @@ Last updated 2026-09-22, start of the polish pass.
      routes: a segmented control in the app and a pinch on the grid (one step
      per pinch, saved to the same preference). Keyboard height unchanged;
      target cell widths 88 / 118 / 172 pt give 4 / 3 / 2 columns on a phone.
-     Medium and large load the `normal` scan (medium joined large on
-     2026-09-22; small stays on `small`), decoded at cell size, so memory per
-     thumbnail is bounded by the cell, not the scan; the network and disk
-     cost per card is roughly ten times higher. **Still to measure:** large
-     cards with a big result set (`t:creature`, all Mountain printings) in
-     Instruments against the extension ceiling before external testing.
+     Every size loads the `normal` scan (decided 2026-09-22 after a long
+     scroll through `t:creature` on large cells ran clean), decoded at cell
+     size, so memory per thumbnail is bounded by the cell, not the scan; the
+     thumbnail cache's 24 MB cost limit bounds the total. **Still to
+     measure** in Instruments on the iPad: the extension's resting memory
+     plus a fast scroll through a big result set, before external testing.
   9. Landscape checked on the phone 2026-09-22: fine. Dark mode: fine.
+  11. ~~Grid returned to the top after a dismissal or after Back from
+     printings~~ — done 2026-09-22. Rebuilds restore pages and position from
+     `SavedResults`; Back restores the grid the controller kept in memory
+     (`gridBeforePrintings`, one level) and the pipeline's `drop()` cancels
+     the printings request without reporting idle. Awaiting a phone check.
   10. ~~No way to move the caret to fix a typo mid-query~~ — done 2026-09-22.
      `QueryBuffer` (Kit, tested) keeps text plus caret offset; the pill draws
      the caret at the measured position, moves it on tap or drag, and scrolls
@@ -164,7 +174,7 @@ Last updated 2026-09-22, start of the polish pass.
   | --- | --- |
   | Search bar routing | `SearchPipeline.search(_:)`, `.searchExact(name:)` (`.typed(_:)` is unused by the extension) |
   | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)`, `QueryBuffer` (text + caret) |
-  | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry) |
+  | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry, `snapshot` for restore) |
   | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |
   | Printing picker | `searchExact(name:)` fills the grid with every printing |
   | Empty / error / offline | `SearchOutcome.empty` vs `.failure`, `TransportFailure` |
@@ -310,7 +320,7 @@ Extension facts to design around:
 - `RequestsOpenAccess` = YES in the extension Info.plist (network access requires Full Access).
 - Hard memory ceiling (~60–80 MB); iOS kills the extension silently when exceeded. Downsample thumbnails at decode time via `CGImageSourceCreateThumbnailAtIndex`; `NSCache` with a count limit; never retain the full-size JPEG beyond the pasteboard write; zero third-party dependencies.
 - The extension sets its own height with a constraint on `inputView`. Grid mode may be taller than typing mode; animate the change.
-- Recents and the saved search persist in the extension's own container (`UserDefaults` for the card list, cache directory for thumbnails). The App Group carries settings only; the container app does not show recents (decided 2026-09-22).
+- Recents and the saved search persist in the extension's own container (`UserDefaults` for the card list and the search record, cache directory for thumbnails and the saved results file). The App Group carries settings only; the container app does not show recents (decided 2026-09-22).
 - iOS 16+: first paste into each receiving app triggers a one-time system permission prompt. Expected; mention in onboarding.
 - Tap action: fetch `normal` JPEG → `UIPasteboard.general.setData(_, forPasteboardType: UTType.jpeg.identifier)` → toast → release.
 
