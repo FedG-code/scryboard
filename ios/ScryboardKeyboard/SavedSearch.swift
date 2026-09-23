@@ -3,8 +3,8 @@ import ScryboardKit
 
 /// The last committed search, kept so the grid comes back where the user left
 /// it. The host app rebuilds the keyboard on every dismissal, and pasting a
-/// card dismisses it, so without this the grid reset to recents after each
-/// copy. Expires after ten minutes; the clear button removes it at once.
+/// card dismisses it, so without this the keyboard reopened on the builder
+/// after each copy. Expires after ten minutes; the clear button removes it at once.
 ///
 /// This record is small and lives in `UserDefaults`. The results themselves
 /// go through ``SavedResults`` to a file in the caches directory, tagged with
@@ -12,7 +12,8 @@ import ScryboardKit
 /// search; when the file is gone the query is simply run again.
 struct SavedSearch: Codable, Equatable {
     /// What the user typed. Stays in the pill even while printings are shown,
-    /// and is what Back returns to. Empty when the grid was recents.
+    /// and is what Back returns to. Empty when the printings came from the
+    /// builder's empty state.
     var query: String
     /// The held card whose printings fill the grid, if any.
     var printings: String?

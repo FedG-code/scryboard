@@ -14,6 +14,8 @@ public enum KeyboardEffect: Sendable, Hashable {
     case submit
     /// Hand over to the next keyboard. The globe key.
     case advanceToNextInputMode
+    /// Put the query builder back on screen. The search bar keeps its text.
+    case showBuilder
 }
 
 /// The result of a key press: where the keyboard ends up, and what the host
@@ -84,6 +86,9 @@ public struct KeyboardState: Sendable, Hashable {
 
         case .search:
             return KeyboardTransition(state: next, effect: .submit)
+
+        case .builder:
+            return KeyboardTransition(state: next, effect: .showBuilder)
         }
     }
 

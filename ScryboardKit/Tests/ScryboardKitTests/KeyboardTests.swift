@@ -20,9 +20,14 @@ struct KeyboardLayoutTests {
     @Test("The letters plane opens with a row of query syntax")
     func syntaxRow() {
         let row = KeyboardLayout.standard(plane: .letters, shift: .off).rows[0]
-        #expect(row.keys.map(\.label).joined() == ":<>=\"!-()/")
-        #expect(row.keys.allSatisfy { $0.widthUnits == 1 })
-        #expect(row.widthUnits == 10)
+        #expect(row.keys.map(\.label).joined() == "\"!-(<:>)=/")
+        // The colon is the key every filter needs: centred and wider, with
+        // the comparison signs either side of it.
+        let colon = row.keys[5]
+        #expect(colon.action == .character(":"))
+        #expect(colon.widthUnits == 1.5)
+        #expect(row.keys.filter { $0.id != colon.id }.allSatisfy { $0.widthUnits < 1 })
+        #expect(abs(row.widthUnits - 10) < 0.0001, "the syntax row is as wide as the letter row")
     }
 
     @Test("Shift redraws the letters in uppercase")
@@ -33,7 +38,7 @@ struct KeyboardLayoutTests {
             // The action stays lowercase — casing is applied on insert, once.
             #expect(layout.rows[1].keys.first?.action == .character("q"))
             // The syntax row above the letters has no case to change.
-            #expect(layout.rows[0].keys.map(\.label).joined() == ":<>=\"!-()/")
+            #expect(layout.rows[0].keys.map(\.label).joined() == "\"!-(<:>)=/")
         }
     }
 
@@ -47,6 +52,20 @@ struct KeyboardLayoutTests {
             #expect(actions.contains(.backspace), "\(plane) is missing delete")
             #expect(actions.contains(.search), "\(plane) is missing search")
             #expect(actions.contains(.space), "\(plane) is missing space")
+            #expect(actions.contains(.builder), "\(plane) has no way back to the builder")
+        }
+    }
+
+    /// The builder key took its width from the space bar, so the bottom row
+    /// is still ten units and the other keys did not move.
+    @Test("The builder key sits between the plane key and the globe")
+    func builderKeyPlacement() {
+        for plane in KeyboardPlane.allCases {
+            let bottom = KeyboardLayout.standard(plane: plane, shift: .off).rows.last!
+            let actions = bottom.keys.map(\.action)
+            #expect(actions[1] == .builder)
+            #expect(actions[2] == .nextInputMode)
+            #expect(bottom.widthUnits == 10)
         }
     }
 
@@ -179,7 +198,8 @@ struct KeyboardStateTests {
         #expect(state.applying(.backspace).effect == .deleteBackward)
         #expect(state.applying(.nextInputMode).effect == .advanceToNextInputMode)
         #expect(state.applying(.search).effect == .submit)
-        for action in [KeyAction.backspace, .nextInputMode, .search] {
+        #expect(state.applying(.builder).effect == .showBuilder)
+        for action in [KeyAction.backspace, .nextInputMode, .search, .builder] {
             #expect(state.applying(action).state == state)
         }
     }

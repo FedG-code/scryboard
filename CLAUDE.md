@@ -8,19 +8,39 @@ The emoji keyboard and the Tenor GIF keyboard, not a typing keyboard with a
 search bar bolted on. The extension is a **card browser first**; the QWERTY is
 something it can show, not what it is.
 
-- **Grid mode is the default.** Opening the keyboard shows a search-bar pill
-  across the top and a scrollable grid of card thumbnails, nothing else. No
-  delete key in this mode: there is nothing to delete from, and the strip only
-  cost grid space. A globe appears under the grid only on systems that do not
-  draw their own (`needsInputModeSwitchKey`). With nothing typed the grid shows the user's
-  **recently copied cards**; on a fresh install, before anything has been copied,
-  it shows a fixed **default search** (newest set, `order:released`).
+- **The query builder is the home screen** (since 2026-09-23; it replaced a
+  grid of recently copied cards, which the developer found worthless). With
+  nothing searched, the keyboard shows the search-bar pill and, under it, a
+  step-by-step builder for Scryfall syntax aimed at beginners: pick a
+  **filter** (colour identity, colour, type, mana value, rarity, format,
+  power, toughness, keyword, card text), then an **operator in words** ("fits
+  within", "at least", "or better"), then a **value** (W U B R G toggles,
+  digits 0–9, or a list), with a plain-language sentence and the raw syntax
+  above the buttons. Crumbs at the top say Filter / Operator / Value; the
+  Operator crumb is absent when the filter has one operator. **Add** appends
+  the clause to the pill after a space and sends nothing; **Search** runs the
+  pill; **Not** prefixes `-`. Card text and "Other…" under Type end at the
+  operator and open the QWERTY with the caret where the words go (`o:""`,
+  caret between the quotes). Colour and identity never emit a bare colon:
+  on Scryfall `c:` means `>=` and `id:` means `<=` (checked against the API),
+  so the builder writes the operator it said. All of it is `QueryClause` and
+  `QueryFilter` in the Kit (tested); `BuilderView` in the extension only
+  draws. Mock-up with the rejected alternatives: `docs/prototypes/query-builder.html`.
+- **Grid mode shows results.** After a search the builder gives way to a
+  scrollable grid of card thumbnails. No delete key in this mode: there is
+  nothing to delete from. A globe appears under the grid only on systems
+  that do not draw their own (`needsInputModeSwitchKey`). The pill's clear
+  button empties the query and returns to the builder.
 - **Tapping the search bar switches to typing mode.** The grid gives way to the
   in-extension QWERTY (`KeyboardLayout`). The letters plane carries a **syntax
-  row** above the letters, `: < > = " ! - ( ) /`, like the iPad number row, so
-  a normal query never leaves the plane. The space bar is unlabelled and the
-  commit key is a return symbol, as on the system keyboard. In this mode
-  backspace edits the query, not the host text. The search bar is a
+  row** above the letters, `" ! - ( < : > ) = /`, like the iPad number row, so
+  a normal query never leaves the plane; the colon is the key every filter
+  needs, so it sits in the middle, half a key wider (2026-09-23), and the row
+  stays as wide as the letter row. The space bar is unlabelled and the
+  commit key is a return symbol, as on the system keyboard. A **builder key**
+  (sliders symbol) sits between `123` and the globe on every plane and
+  returns to the builder with the query kept; the space bar paid for it. In
+  this mode backspace edits the query, not the host text. The search bar is a
   custom-drawn view, never a `UITextField`: a text field inside an extension
   tries to summon a system keyboard that cannot appear. It has a real caret:
   tapping the text puts it in the nearest gap between letters and dragging
@@ -43,7 +63,7 @@ something it can show, not what it is.
   so a change of card size does not lose the place.
 - **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied". Just that
   word: the longer "tap and hold to paste" read as an instruction for the
-  keyboard itself and confused. The grid stays put; the card joins recents.
+  keyboard itself and confused. The grid stays put.
   A **copy format** setting in the container app (`CopyFormat`, added
   2026-09-23) can swap the image for the card's Scryfall page (`scryfall_uri`,
   written as both URL and text) or plain text: the card name, or from the
@@ -90,7 +110,7 @@ Last updated 2026-09-23, polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 116 tests across 15 suites, no warnings, Swift 6 language mode,
+- **Green:** 131 tests across 15 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
@@ -152,35 +172,21 @@ Last updated 2026-09-23, polish pass.
      `Name (SET) number`, awaiting the developer's verdict; it is one
      property in the Kit to change. `Preferences` now decodes missing keys
      to their defaults, so adding a field never resets saved settings.
-- **Being designed (2026-09-23): a query builder in place of recents.** The
-  developer finds the recents empty state worthless and wants the keyboard
-  to open on a builder for Scryfall syntax aimed at beginners: pick a filter
-  (colour identity, colour, type, mana value, rarity, format, power,
-  toughness, keyword, card text), then an operator in words ("fits within",
-  "at least"), then a value, with a plain-language sentence and the raw
-  syntax shown before Add appends the clause to the pill. Add never sends a
-  request; Search does. Settled so far: one step at a time (crumbs, no
-  numbering, operator step hidden when the filter has only one), no clause
-  tokens under the pill, plain W U B R G letters with no colour tint,
-  numbers 0–9 only, no `is:` filters, and "card text" hands off to the
-  QWERTY with `o:""` in the pill and the caret between the quotes. Colour
-  and identity never emit a bare colon because on Scryfall `c:` means `>=`
-  and `id:` means `<=` (checked against the API). Also agreed: move `:` to
-  the centre of the syntax row, wider. Typing mode returns to the builder
-  with a sliders key on the QWERTY's bottom row between `123` and the globe,
-  drawn like every other function key (chosen 2026-09-23 over a pill icon
-  and a swipe); the space bar gives up the width. Mock-up in
-  `docs/prototypes/query-builder.html`.
-  Recents will be removed when this ships; the pill's clear button returns
-  to the builder. Plan: a tested `QueryClause` type in ScryboardKit, a
-  builder view in the extension.
+- **Query builder shipped to TestFlight 2026-09-23** (see the UX model),
+  built in one pass from the mock-up without a device check, so the first
+  phone session should look at: chip sizes and wrapping in the value pane,
+  the 220 pt landscape height (the pane gets little room and scrolls), and
+  whether the sliders key on the QWERTY reads as "back to the builder".
+  Rejected in the design round: clause tokens under the pill, tinted colour
+  letters, an `is:` filter, a pill icon or a swipe as the way back. Numbers
+  stop at 9 on purpose. A clause added but not yet searched is not saved
+  across a keyboard rebuild; only committed searches are.
 - **Next, after the polish list:**
   1. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
      attribution screen. The bones exist in `ios/Scryboard/ContentView.swift`.
-     Decided 2026-09-22: the container app will **not** show recents, so
-     recents stay in the extension's own defaults and the App Group carries
-     settings only.
+     Decided 2026-09-22: the container app shows settings only; the App
+     Group carries nothing else.
   2. Milestone 7 polish: double-faced **flip in the grid** (decided
      2026-09-22; copying sends the face currently shown), designed
      empty/offline/error states, sharper thumbnails on iPad (small scan is
@@ -209,7 +215,8 @@ Last updated 2026-09-23, polish pass.
   | Need | Already in ScryboardKit / ScryboardUI |
   | --- | --- |
   | Search bar routing | `SearchPipeline.search(_:)`, `.searchExact(name:)` (`.typed(_:)` is unused by the extension) |
-  | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)`, `QueryBuffer` (text + caret) |
+  | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)`, `QueryBuffer` (text + caret, `appendTerm`) |
+  | Query builder | `QueryFilter` (catalogue: operators, choices, steps), `QueryClause` (`syntax`, `sentence`, `caretFromEnd`), `ManaColour` |
   | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry, `snapshot` for restore) |
   | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |
   | Printing picker | `searchExact(name:)` fills the grid with every printing |
@@ -233,8 +240,9 @@ Last updated 2026-09-23, polish pass.
   drag carries the JPEG plus the clean page link (`Card.pageURL`, no
   `utm_source`) so a field that takes no images gets the link; the receiver
   chooses, and WhatsApp takes the link in its text box and the image in the
-  chat. Link and Text settings drag one thing. An accepted drop joins
-  recents; a refused one shows nothing. Hold for printings is 0.7 s, fires
+  chat. Link and Text settings drag one thing. A refused drop shows
+  nothing (`ResultsView.onDragEnded` still reports the outcome; nothing
+  listens since recents went). Hold for printings is 0.7 s, fires
   while the finger is down, cancels the drag lift (which comes at about
   0.5 s) by toggling the interaction off for a run-loop turn, and is
   disabled in the printings view. Moving before 0.7 s drags. Phone check of
@@ -255,7 +263,9 @@ Last updated 2026-09-23, polish pass.
   the `.xcodeproj` is gitignored and regenerated with `xcodegen generate` from
   `ios/`. Never hand-edit the generated project — change the YAML and regenerate.
   XcodeGen is a developer tool only; nothing from it ships.
-- **Recents, then default search** for the empty grid (see UX model).
+- **The builder, not recents, for the empty state** (see UX model). Recents
+  were removed on 2026-09-23 along with `RecentCards`; the extension's own
+  defaults now hold only the saved search.
 - **Image loading and the thumbnail cache live in a second package target,
   `ScryboardUI`**, which may import ImageIO and UIKit and is shared by both app
   targets. `ScryboardKit` stays Foundation-only for the Android port.
@@ -264,8 +274,8 @@ Last updated 2026-09-23, polish pass.
   `.entitlements` files, which are gitignored like the project; automatic
   signing registered the group from the command line on 2026-09-22 with no
   portal work. `Preferences` and `PreferencesStore` in ScryboardUI are the
-  only readers and writers; recents and the saved search stay in the
-  extension's own defaults.
+  only readers and writers; the saved search stays in the extension's own
+  defaults.
 
 ## Repository layout
 
@@ -377,11 +387,11 @@ Single Xcode project, two targets, both depending on the local `ScryboardKit` pa
 
 Extension facts to design around:
 
-- A globe key is required wherever the system does not draw one (`needsInputModeSwitchKey`). In grid mode it is a lone button under the grid; in typing mode it is part of `KeyboardLayout`. Delete exists only in typing mode, where it edits the query.
+- A globe key is required wherever the system does not draw one (`needsInputModeSwitchKey`). In grid mode it is a lone button under the grid; in typing mode it is part of `KeyboardLayout`. Delete exists only in typing mode, where it edits the query. The builder has no globe of its own: on systems that need one, the extension still shows the browse toolbar's globe only in grid mode, so check `needsInputModeSwitchKey` devices if any turn up (iOS 26 draws its own).
 - `RequestsOpenAccess` = YES in the extension Info.plist (network access requires Full Access).
 - Hard memory ceiling (~60–80 MB); iOS kills the extension silently when exceeded. Downsample thumbnails at decode time via `CGImageSourceCreateThumbnailAtIndex`; `NSCache` with a count limit; never retain the full-size JPEG beyond the pasteboard write; zero third-party dependencies.
 - The extension sets its own height with a constraint on `inputView`. Grid mode may be taller than typing mode; animate the change.
-- Recents and the saved search persist in the extension's own container (`UserDefaults` for the card list and the search record, cache directory for thumbnails and the saved results file). The App Group carries settings only; the container app does not show recents (decided 2026-09-22).
+- The saved search persists in the extension's own container (`UserDefaults` for the search record, cache directory for thumbnails and the saved results file). The App Group carries settings only.
 - iOS 16+: first paste into each receiving app triggers a one-time system permission prompt. Expected; mention in onboarding.
 - Tap action: fetch `normal` JPEG → `UIPasteboard.general.setData(_, forPasteboardType: UTType.jpeg.identifier)` → toast → release.
 
@@ -404,8 +414,8 @@ Extension facts to design around:
    commits.
 4. ~~**Results grid**~~ — done in code. `ScryboardUI` (`ImageDownsampler`,
    `ImageStore`) + `ResultsView`/`CardCell` in the extension; paging via
-   `ResultsPager`; empty state = recents (`RecentCards`) or the most popular
-   cards (`game:paper` by EDHREC rank).
+   `ResultsPager`; empty state = the query builder (was recents until
+   2026-09-23).
 5. ~~**Tap-to-copy**~~ — done and verified on an iPhone on 2026-09-22.
 6. **Container app onboarding + attribution screen.**
 7. **Polish** — double-faced flip control (model side done: `Card.hasDistinctFaceImages`,

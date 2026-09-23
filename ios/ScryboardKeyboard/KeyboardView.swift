@@ -245,6 +245,7 @@ private extension KeyboardKey {
         case .search: "return"
         case .backspace: "delete.left"
         case .nextInputMode: "globe"
+        case .builder: "slider.horizontal.3"
         case .shift: label == "⇪" ? "capslock.fill" : "shift"
         case .character, .space, .plane: nil
         }
@@ -259,6 +260,7 @@ private extension KeyboardKey {
         case .plane(let plane): "Switch to \(plane.rawValue)"
         case .nextInputMode: "Next keyboard"
         case .search: "Search"
+        case .builder: "Query builder"
         }
     }
 }

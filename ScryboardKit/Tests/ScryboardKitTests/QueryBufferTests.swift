@@ -65,4 +65,29 @@ struct QueryBufferTests {
         buffer.deleteBackward()
         #expect(buffer.text == "caé")
     }
+
+    @Test("A builder clause is appended after a space, caret at the end")
+    func appendsTerms() {
+        var buffer = QueryBuffer()
+        buffer.appendTerm("id<=ub")
+        #expect(buffer.text == "id<=ub")
+        #expect(buffer.caret == 6)
+        buffer.appendTerm("t:creature")
+        #expect(buffer.text == "id<=ub t:creature")
+        #expect(buffer.caret == buffer.text.count)
+        // A trailing space the user typed is not doubled.
+        buffer.insert(" ")
+        buffer.appendTerm("r:mythic")
+        #expect(buffer.text == "id<=ub t:creature r:mythic")
+    }
+
+    @Test("Card text leaves the caret between the quotes")
+    func caretInsideQuotes() {
+        var buffer = QueryBuffer("t:creature")
+        buffer.appendTerm("o:\"\"", caretFromEnd: 1)
+        #expect(buffer.text == "t:creature o:\"\"")
+        #expect(buffer.caret == buffer.text.count - 1)
+        buffer.insert("draw")
+        #expect(buffer.text == "t:creature o:\"draw\"")
+    }
 }

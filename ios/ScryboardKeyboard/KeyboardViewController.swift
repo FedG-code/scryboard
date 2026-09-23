@@ -3,17 +3,21 @@ import UniformTypeIdentifiers
 import ScryboardKit
 import ScryboardUI
 
-/// The keyboard. Opens in browsing mode — search-bar pill, results, a slim
-/// toolbar with a globe where the system draws none — and switches to typing
-/// mode, where the results give way to the QWERTY, when the bar is tapped.
-/// The return key brings the results back.
+/// The keyboard. Opens on the query builder under the search-bar pill;
+/// browsing mode shows results in a grid with a slim toolbar holding a globe
+/// where the system draws none; typing mode gives the room to the QWERTY when
+/// the bar is tapped. The return key or the builder's Search shows results,
+/// the pill's clear button and the QWERTY's builder key come back here.
 final class KeyboardViewController: UIInputViewController {
     private enum Mode {
+        /// The query builder. What an empty search bar shows.
+        case building
         case browsing
         case typing
     }
 
     private let searchBar = SearchBarView()
+    private let builderView = BuilderView()
     private let resultsView = ResultsView()
     private let browseToolbar = BrowseToolbarView()
     /// Floats over the grid while printings are shown. The one way back.
@@ -24,10 +28,11 @@ final class KeyboardViewController: UIInputViewController {
 
     private var browsingStack: UIStackView!
     private var typingStack: UIStackView!
+    private var buildingStack: UIStackView!
     private var column: UIStackView!
     private var heightConstraint: NSLayoutConstraint?
 
-    private var mode: Mode = .browsing
+    private var mode: Mode = .building
     /// What the user typed, and where the caret sits in it. Stays in the
     /// pill while printings are shown.
     private var query = QueryBuffer()
@@ -61,7 +66,7 @@ final class KeyboardViewController: UIInputViewController {
         buildHierarchy()
         wireActions()
         keyboardView.render(keyboardState.layout)
-        apply(mode: .browsing, animated: false)
+        apply(mode: .building, animated: false)
         applyPreferences()
         consumeOutcomes()
         restoreLastSearch()
@@ -103,6 +108,9 @@ final class KeyboardViewController: UIInputViewController {
         typingStack = UIStackView(arrangedSubviews: [keyboardView])
         typingStack.axis = .vertical
 
+        buildingStack = UIStackView(arrangedSubviews: [builderView])
+        buildingStack.axis = .vertical
+
         fullAccessNotice.text = "Scryboard needs Full Access to reach Scryfall.\nSettings › General › Keyboard › Keyboards › Scryboard › Allow Full Access"
         fullAccessNotice.font = .preferredFont(forTextStyle: .subheadline)
         fullAccessNotice.textColor = .secondaryLabel
@@ -110,7 +118,7 @@ final class KeyboardViewController: UIInputViewController {
         fullAccessNotice.numberOfLines = 0
         fullAccessNotice.isHidden = true
 
-        column = UIStackView(arrangedSubviews: [searchBar, fullAccessNotice, browsingStack, typingStack])
+        column = UIStackView(arrangedSubviews: [searchBar, fullAccessNotice, buildingStack, browsingStack, typingStack])
         column.axis = .vertical
         column.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(column)
@@ -167,6 +175,10 @@ final class KeyboardViewController: UIInputViewController {
         }
         backButton.addAction(UIAction { [weak self] _ in self?.leavePrintings() }, for: .touchUpInside)
 
+        // The builder appends to the bar and never searches; only Search does.
+        builderView.onAdd = { [weak self] clause in self?.add(clause) }
+        builderView.onSearch = { [weak self] in self?.commitSearch() }
+
         // iOS 26 draws its own globe under third-party keyboards; older
         // systems expect the keyboard to provide one.
         browseToolbar.isHidden = !needsInputModeSwitchKey
@@ -182,10 +194,6 @@ final class KeyboardViewController: UIInputViewController {
         }
 
         resultsView.onSelect = { [weak self] card in self?.copy(card) }
-        // A refused drop gets no toast: the card snapping back says it.
-        resultsView.onDragEnded = { card, accepted in
-            if accepted { RecentCards.remember(card) }
-        }
         resultsView.onLongPress = { [weak self] card in self?.showPrintings(of: card) }
         resultsView.onPinchToSize = { [weak self] size in
             guard let self else { return }
@@ -230,11 +238,13 @@ final class KeyboardViewController: UIInputViewController {
 
     private func apply(mode: Mode, animated: Bool) {
         self.mode = mode
+        let allowed = hasFullAccess
         let changes = {
-            self.browsingStack.isHidden = mode == .typing
-            self.typingStack.isHidden = mode == .browsing
+            self.buildingStack.isHidden = mode != .building || !allowed
+            self.browsingStack.isHidden = mode != .browsing
+            self.typingStack.isHidden = mode != .typing
             self.searchBar.isEditing = mode == .typing
-            self.backButton.isHidden = mode == .typing || self.printings == nil
+            self.backButton.isHidden = mode != .browsing || self.printings == nil
         }
         if animated {
             UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState], animations: changes)
@@ -252,7 +262,8 @@ final class KeyboardViewController: UIInputViewController {
         fullAccessNotice.isHidden = allowed
         searchBar.isUserInteractionEnabled = allowed
         resultsView.isHidden = !allowed
-        backButton.isHidden = !allowed || mode == .typing || printings == nil
+        backButton.isHidden = !allowed || mode != .browsing || printings == nil
+        buildingStack.isHidden = !allowed || mode != .building
         if !allowed, mode == .typing {
             apply(mode: .browsing, animated: false)
         }
@@ -278,6 +289,19 @@ final class KeyboardViewController: UIInputViewController {
             commitSearch()
         case .advanceToNextInputMode:
             advanceToNextInputMode()
+        case .showBuilder:
+            apply(mode: .building, animated: true)
+        }
+    }
+
+    /// A clause from the builder joins the bar after a space. Nothing is sent:
+    /// the user may want another clause first. Card text and "Other…" end at
+    /// the operator, so the QWERTY opens with the caret where the words go.
+    private func add(_ clause: QueryClause) {
+        query.appendTerm(clause.syntax, caretFromEnd: clause.caretFromEnd)
+        queryChanged()
+        if clause.handsOffToKeyboard {
+            apply(mode: .typing, animated: true)
         }
     }
 
@@ -287,17 +311,19 @@ final class KeyboardViewController: UIInputViewController {
     private func queryChanged() {
         searchBar.query = query.text
         searchBar.caret = query.caret
+        builderView.canSearch = !query.text.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     private func commitSearch() {
         let current = query.text
         printings = nil
-        apply(mode: .browsing, animated: true)
-        SavedSearch.remember(query: current, printings: nil)
-        guard !current.isEmpty else {
+        guard !current.trimmingCharacters(in: .whitespaces).isEmpty else {
+            SavedSearch.clear()
             showEmptyState()
             return
         }
+        apply(mode: .browsing, animated: true)
+        SavedSearch.remember(query: current, printings: nil)
         runSearch(current)
     }
 
@@ -309,13 +335,15 @@ final class KeyboardViewController: UIInputViewController {
         Task { await pipeline.search(query, order: order, direction: direction) }
     }
 
+    /// The pill's clear button: empty bar, back to the builder.
     private func clearQuery() {
         query = QueryBuffer()
         queryChanged()
         printings = nil
         gridBeforePrintings = nil
-        backButton.isHidden = true
+        pager = nil
         SavedSearch.clear()
+        apply(mode: .building, animated: true)
         Task {
             await SavedResults.shared.clear()
             await pipeline.cancel()
@@ -387,7 +415,7 @@ final class KeyboardViewController: UIInputViewController {
         query = QueryBuffer(saved.query)
         queryChanged()
         printings = saved.printings
-        backButton.isHidden = saved.printings == nil
+        apply(mode: .browsing, animated: false)
         resultsView.show(.loading)
         Task { [weak self] in
             let stored = await SavedResults.shared.load(id: saved.resultsID)
@@ -405,16 +433,13 @@ final class KeyboardViewController: UIInputViewController {
 
     // MARK: - Empty state
 
-    /// Recents once the user has copied something; before that, the most
-    /// popular cards, so the keyboard is never a blank box.
+    /// Nothing to show: the builder. It replaced a grid of recently copied
+    /// cards on 2026-09-23; building the next search is the better use of
+    /// the room.
     private func showEmptyState() {
         pager = nil
-        let recents = RecentCards.load()
-        if !recents.isEmpty {
-            resultsView.show(recents)
-        } else {
-            Task { await pipeline.search("game:paper", order: .edhrec, direction: .ascending) }
-        }
+        resultsView.show([])
+        apply(mode: .building, animated: mode == .typing)
     }
 
     // MARK: - Copying
@@ -432,13 +457,11 @@ final class KeyboardViewController: UIInputViewController {
                 UTType.url.identifier: link,
                 UTType.utf8PlainText.identifier: link.absoluteString,
             ]])
-            RecentCards.remember(card)
             toast.show("Link copied")
         case .text:
             // The printings view is where the printing matters; elsewhere
             // the name alone reads better in a chat.
             UIPasteboard.general.string = printings == nil ? card.name : card.decklistLine
-            RecentCards.remember(card)
             toast.show("Name copied")
         }
     }
@@ -452,7 +475,6 @@ final class KeyboardViewController: UIInputViewController {
                 let data = try await ImageStore.shared.imageData(for: url)
                 guard !Task.isCancelled else { return }
                 UIPasteboard.general.setData(data, forPasteboardType: UTType.jpeg.identifier)
-                RecentCards.remember(card)
                 self?.toast.show("Copied")
             } catch {
                 self?.toast.show("Couldn’t copy. Check your connection.")

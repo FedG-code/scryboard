@@ -35,6 +35,8 @@ public enum KeyAction: Sendable, Hashable {
     case nextInputMode
     /// Commit the search bar's contents.
     case search
+    /// Back to the query builder, keeping what is in the search bar.
+    case builder
 }
 
 public struct KeyboardKey: Sendable, Hashable, Identifiable {
@@ -132,9 +134,11 @@ public struct KeyboardLayout: Sendable, Hashable {
         KeyboardLayout(rows: [
             // The query-syntax row, above the letters like the number row on
             // an iPad: every operator a typical search needs without leaving
-            // the plane. `:` opens a filter, `<>=` compare, `"` quotes, `!`
-            // is an exact name, `-` negates, `()` group, `/` splits faces.
-            KeyboardRow(characterKeys(":<>=\"!-()/", shift: .off)),
+            // the plane. `:` opens every filter, so it sits in the middle,
+            // half a key wider, with `<` and `>` either side; `"` quotes,
+            // `!` is an exact name, `-` negates, `()` group, `/` splits
+            // faces. The row is the width of the letter row below it.
+            syntaxRow,
             KeyboardRow(characterKeys("qwertyuiop", shift: shift)),
             KeyboardRow(characterKeys("asdfghjkl", shift: shift)),
             KeyboardRow(
@@ -174,6 +178,17 @@ public struct KeyboardLayout: Sendable, Hashable {
     }
 
     // MARK: - Key construction
+
+    private static var syntaxRow: KeyboardRow {
+        let colonUnits = 1.5
+        let others = "\"!-(<" + ">)=/"
+        let otherUnits = (10 - colonUnits) / Double(others.count)
+        return KeyboardRow(
+            characterKeys("\"!-(<", shift: .off, widthUnits: otherUnits)
+                + characterKeys(":", shift: .off, widthUnits: colonUnits)
+                + characterKeys(">)=/", shift: .off, widthUnits: otherUnits)
+        )
+    }
 
     private static func characterKeys(
         _ characters: String,
@@ -221,10 +236,13 @@ public struct KeyboardLayout: Sendable, Hashable {
     private static func bottomRow(planeKey plane: KeyboardPlane, label: String) -> KeyboardRow {
         KeyboardRow([
             KeyboardKey(id: "plane-\(plane.rawValue)", action: .plane(plane), label: label, widthUnits: 1.25),
+            // The way back down to the query builder; the space bar paid
+            // for it. Drawn like every other function key.
+            KeyboardKey(id: "builder", action: .builder, label: "⊞", widthUnits: 1.25),
             // Required by Apple. Never omit it, never hide it behind a long press.
             KeyboardKey(id: "globe", action: .nextInputMode, label: "🌐", widthUnits: 1.25),
             // Unlabelled, as on the emoji keyboard: everyone knows the wide key.
-            KeyboardKey(id: "space", action: .space, label: "", widthUnits: 5),
+            KeyboardKey(id: "space", action: .space, label: "", widthUnits: 3.75),
             KeyboardKey(id: "search", action: .search, label: "⏎", widthUnits: 2.5),
         ])
     }

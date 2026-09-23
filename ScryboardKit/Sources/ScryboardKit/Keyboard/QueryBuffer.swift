@@ -31,6 +31,15 @@ public struct QueryBuffer: Sendable, Hashable {
         caret -= 1
     }
 
+    /// Adds a clause from the builder at the end, after a space when there is
+    /// text already, and leaves the caret `caretFromEnd` characters before the
+    /// end: inside the empty quotes of `o:""`, or at the end for anything else.
+    public mutating func appendTerm(_ term: String, caretFromEnd: Int = 0) {
+        if !text.isEmpty, text.last != " " { text.append(" ") }
+        text.append(term)
+        caret = max(0, text.count - caretFromEnd)
+    }
+
     /// Places the caret, clamping an offset the text cannot hold.
     public mutating func moveCaret(to offset: Int) {
         caret = min(max(offset, 0), text.count)
