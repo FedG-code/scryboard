@@ -145,13 +145,35 @@ Last updated 2026-09-23, polish pass.
      the caret at the measured position, moves it on tap or drag, and scrolls
      a long query to keep it in view. Awaiting a phone check.
   12. ~~Container app raised the keyboard on open, hiding the settings, and
-     nothing dismissed it~~ — done 2026-09-23: no auto-focus; a tap anywhere
-     outside the field or a scroll puts it away.
+     nothing dismissed it~~ — moot since 2026-09-23: the text field itself
+     was removed (see Core decisions).
   13. ~~Copy format setting: image / Scryfall link / text~~ — done 2026-09-23
      (see the UX model). The printings-view text format is a proposal,
      `Name (SET) number`, awaiting the developer's verdict; it is one
      property in the Kit to change. `Preferences` now decodes missing keys
      to their defaults, so adding a field never resets saved settings.
+- **Being designed (2026-09-23): a query builder in place of recents.** The
+  developer finds the recents empty state worthless and wants the keyboard
+  to open on a builder for Scryfall syntax aimed at beginners: pick a filter
+  (colour identity, colour, type, mana value, rarity, format, power,
+  toughness, keyword, card text), then an operator in words ("fits within",
+  "at least"), then a value, with a plain-language sentence and the raw
+  syntax shown before Add appends the clause to the pill. Add never sends a
+  request; Search does. Settled so far: one step at a time (crumbs, no
+  numbering, operator step hidden when the filter has only one), no clause
+  tokens under the pill, plain W U B R G letters with no colour tint,
+  numbers 0–9 only, no `is:` filters, and "card text" hands off to the
+  QWERTY with `o:""` in the pill and the caret between the quotes. Colour
+  and identity never emit a bare colon because on Scryfall `c:` means `>=`
+  and `id:` means `<=` (checked against the API). Also agreed: move `:` to
+  the centre of the syntax row, wider. Typing mode returns to the builder
+  with a sliders key on the QWERTY's bottom row between `123` and the globe,
+  drawn like every other function key (chosen 2026-09-23 over a pill icon
+  and a swipe); the space bar gives up the width. Mock-up in
+  `docs/prototypes/query-builder.html`.
+  Recents will be removed when this ships; the pill's clear button returns
+  to the builder. Plan: a tested `QueryClause` type in ScryboardKit, a
+  builder view in the extension.
 - **Next, after the polish list:**
   1. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
@@ -217,10 +239,10 @@ Last updated 2026-09-23, polish pass.
   0.5 s) by toggling the interaction off for a run-loop turn, and is
   disabled in the printings view. Moving before 0.7 s drags. Phone check of
   the lift cancel pending.
-- **The container app's "Try it" field is a `UITextView` of our own**
-  (`ScratchPad`, 2026-09-23) that accepts image pastes and drops inline,
-  since the stock SwiftUI field ignores both and pasting a card is the
-  point.
+- **The container app has no "try it" text field.** One existed for a few
+  hours on 2026-09-23 (a `UITextView` that took image pastes); the developer
+  removed it because people try the keyboard in a real chat anyway, and a
+  field in the settings screen taught nothing. Do not bring it back.
 - **No server component.** The keyboard talks directly to the Scryfall API. Zero backend, zero hosting costs.
 - **No local card database, no offline mode.** Scryfall's server evaluates all search syntax (including `otag:`), so there is nothing to sync or bundle. The user is in a messaging context and therefore online.
 - **No gallery writes, ever.** Images live in the extension's cache directory (evictable) and the pasteboard only.

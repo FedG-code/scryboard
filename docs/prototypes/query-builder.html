@@ -1,0 +1,421 @@
+<!doctype html>
+<!--
+  Scryboard prototype: the step-by-step query builder that replaces the
+  recents grid, and three ways for typing mode to get back to it
+  (2026-09-23). Open this file in a browser. Nothing here talks to Scryfall;
+  the results grid is a stand-in. Supersedes syntax-builder.html.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Query Builder</title>
+<style>
+:root{
+  --bg:#f4f3ef; --ink:#1b1b1f; --muted:#6a6a72; --line:#dcdad3; --panel:#ffffff;
+  --accent:#2f6df6; --tab-bg:#e9e7e0;
+  --kb:#1c1c1e; --kb-key:#3a3a3c; --kb-fn:#2a2a2c; --kb-pill:#2c2c2e; --kb-ink:#f2f2f7; --kb-muted:#8e8e93; --kb-tint:#5aa0ff; --kb-chat:#000;
+  --kb-on:#e5e5ea; --kb-on-ink:#1c1c1e;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141416; --ink:#ececf0; --muted:#9a9aa3; --line:#2b2b31; --panel:#1d1d21; --tab-bg:#232328; }}
+:root[data-theme="dark"]{ --bg:#141416; --ink:#ececf0; --muted:#9a9aa3; --line:#2b2b31; --panel:#1d1d21; --tab-bg:#232328; }
+html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;}
+body{margin:0;padding-block:28px 48px;padding-inline:16px;line-height:1.45}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+p.lead{color:var(--muted);margin:0 0 20px;max-width:60ch}
+.tabs{display:flex;gap:6px;background:var(--tab-bg);padding:4px;border-radius:12px;margin-bottom:16px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;padding:9px 6px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.stage{display:flex;justify-content:center}
+.phone{width:393px;max-width:100%;background:var(--kb-chat);border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35);color:var(--kb-ink);position:relative;user-select:none;-webkit-user-select:none}
+.chat{height:96px;padding:14px 12px 0;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
+.bubble{align-self:flex-end;background:#1f5b3f;color:#fff;font-size:14px;padding:7px 10px;border-radius:12px;max-width:70%}
+.compose{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#0f0f10}
+.compose .plus{font-size:22px;color:#fff;width:22px;text-align:center}
+.compose .field{flex:1;height:34px;border-radius:17px;background:#1e1e20;position:relative}
+.compose .field::after{content:"";position:absolute;left:12px;top:8px;width:2px;height:18px;background:#34c759}
+.compose .mic{width:34px;height:34px;border-radius:17px;background:#34c759}
+.kb{background:var(--kb);height:320px;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.pill{margin:6px 8px 4px;height:36px;border-radius:10px;background:var(--kb-pill);display:flex;align-items:center;padding:0 6px 0 8px;gap:6px;font-size:16px;flex:none}
+.pill .glyph{width:22px;height:22px;color:var(--kb-muted);flex:none;display:flex;align-items:center;justify-content:center;border-radius:6px}
+.pill .glyph.tap{color:var(--kb-tint);cursor:pointer}
+.pill .glyph.tap:hover{background:rgba(90,160,255,.12)}
+.pill .q{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;cursor:text;min-height:20px}
+.pill .q:empty::before{content:"Search cards";color:var(--kb-muted);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:16px}
+.caret{display:inline-block;width:2px;height:18px;background:var(--kb-tint);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pill .clear{width:22px;height:22px;border-radius:11px;background:#4a4a4e;color:#1c1c1e;font-size:13px;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;flex:none}
+.pill .clear.off{visibility:hidden}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* builder */
+.builder{flex:1;display:none;flex-direction:column;min-height:0;padding:0 8px 6px;gap:6px}
+.kb.mode-build .builder{display:flex}
+.sentence{flex:none;min-height:38px;display:flex;flex-direction:column;justify-content:center;padding:0 4px}
+.sentence .words{font-size:15px;line-height:1.25;color:var(--kb-ink)}
+.sentence .words .gap{color:var(--kb-muted)}
+.sentence .code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;color:var(--kb-tint);margin-top:2px;min-height:15px}
+.chip{flex:none;height:36px;padding:0 11px;border-radius:8px;background:var(--kb-key);color:var(--kb-ink);font:inherit;font-size:14px;border:0;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.35);white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.chip.fn{background:var(--kb-fn)}
+.chip.on{background:var(--kb-on);color:var(--kb-on-ink)}
+.chip:active{filter:brightness(1.2)}
+.chip .sub{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:var(--kb-muted)}
+.chip.on .sub{color:#5c5c66}
+.chip.go{color:var(--kb-tint)}
+.crumbs{display:flex;gap:4px;flex:none}
+.crumb{flex:1;height:28px;border-radius:7px;background:var(--kb-fn);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--kb-muted);cursor:pointer;overflow:hidden;white-space:nowrap;padding:0 8px}
+.crumb b{color:var(--kb-ink);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.crumb.cur{background:var(--kb-key);color:var(--kb-ink)}
+.crumb[hidden]{display:none}
+.pane{flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;scrollbar-width:none}
+.pane::-webkit-scrollbar{display:none}
+.pane .chip.mana{width:44px;height:44px;font-size:18px;font-weight:700;padding:0}
+.pane.grid3 .chip{flex:1 1 30%}
+.pane.grid2 .chip{flex:1 1 45%}
+.pane .hint{width:100%;color:var(--kb-muted);font-size:13px;padding:8px 4px;line-height:1.35}
+.actions{display:flex;gap:6px;flex:none;margin-top:auto}
+.actions .chip{height:40px;flex:1;font-weight:600}
+.actions .chip.not{flex:0 0 64px}
+.actions .chip.add{flex:1.4}
+.actions .chip.search{background:var(--kb-tint);color:#04203f}
+.actions .chip.disabled{opacity:.45;pointer-events:none}
+
+/* results */
+.gridwrap{flex:1;position:relative;overflow:hidden;display:none}
+.kb.mode-results .gridwrap{display:block}
+.grid{position:absolute;inset:0;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start}
+.card{aspect-ratio:5/7;border-radius:6px;background:linear-gradient(160deg,#3a3a3c,#26262a);display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--kb-muted);box-sizing:border-box;border:1px solid rgba(255,255,255,.06)}
+
+/* typing mode */
+.qwerty{flex:1;display:none;flex-direction:column;justify-content:space-between;padding:4px 3px 8px;gap:8px;position:relative;touch-action:none}
+.kb.mode-type .qwerty{display:flex}
+.krow{display:flex;justify-content:center;gap:6px}
+.key{height:40px;flex:0 0 calc((100% - 9*6px)/10);border-radius:5px;background:var(--kb-key);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 1px 0 rgba(0,0,0,.35);color:var(--kb-ink);cursor:pointer}
+.key:active{filter:brightness(1.25)}
+.krow.syntax .key{height:34px;font-size:17px}
+.key.fn{background:var(--kb-fn);font-size:15px}
+.key.w15{flex-basis:calc((100% - 9*6px)/10*1.5 + 3px)}
+.key.w125{flex-basis:calc((100% - 9*6px)/10*1.25 + 1.5px)}
+.key.w5{flex-basis:calc((100% - 9*6px)/10*5 + 24px)}
+.key.w375{flex-basis:calc((100% - 9*6px)/10*3.75 + 16.5px)}
+.key.w25{flex-basis:calc((100% - 9*6px)/10*2.5 + 9px)}
+.key.colon{background:var(--kb-on);color:var(--kb-on-ink);font-weight:700}
+.key.builder{display:none}
+.key.builder svg{width:15px;height:15px;stroke-width:2}
+.phone.ret-key .key.builder{display:flex}
+.phone.ret-key .key.space{flex-basis:calc((100% - 9*6px)/10*3.75 + 16.5px)}
+.grabber{display:none;height:12px;align-items:center;justify-content:center;flex:none;cursor:grab}
+.grabber::before{content:"";width:36px;height:4px;border-radius:2px;background:#4a4a4e}
+.phone.ret-swipe .grabber{display:flex}
+.phone.ret-swipe .qwerty{padding-top:0}
+.pill .glyph.builder-glyph{display:none}
+.phone.ret-pill .kb.mode-type .glyph.search-glyph,.phone.ret-pill .kb.mode-results .glyph.search-glyph{display:none}
+.phone.ret-pill .kb.mode-type .glyph.builder-glyph,.phone.ret-pill .kb.mode-results .glyph.builder-glyph{display:flex}
+.qwerty.sliding{transition:transform .22s ease-in,opacity .22s;transform:translateY(100%);opacity:0}
+.toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.82);color:#fff;padding:9px 14px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:3;white-space:nowrap}
+.toast.on{opacity:1}
+.sysbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:#fff;background:var(--kb)}
+.sysbar svg{width:26px;height:26px}
+.status{margin-top:12px;text-align:center;color:var(--muted);font-size:13px;min-height:20px}
+.status code,.notes code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;background:var(--tab-bg);padding:1px 5px;border-radius:5px}
+.notes{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.notes h2{font-size:15px;margin:0 0 8px}
+.notes p{margin:0 0 10px;color:var(--muted);font-size:14px}
+.notes ul{margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:14px}
+.notes li{margin:4px 0}
+.notes li b,.notes p b{color:var(--ink);font-weight:600}
+.notes .tablewrap{overflow-x:auto;margin:6px 0 14px}
+.notes table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+.notes th{text-align:left;font-weight:600;color:var(--ink);padding:6px 8px;border-bottom:1px solid var(--line)}
+.notes td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--muted);vertical-align:top}
+.notes td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.toast,.qwerty.sliding{transition:none}.caret{animation:none}}
+</style>
+</head><body>
+<div class="wrap">
+  <h1>Query Builder</h1>
+  <p class="lead">The keyboard opens on this instead of recents. One question per screen: filter, operator, value. The sentence says what the clause means, Add puts it in the pill without searching, Search runs it. The tabs compare three ways for typing mode to get back down to the builder; everything else is identical between them.</p>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="false" data-ret="pill">A · Icon in the pill</button>
+    <button role="tab" aria-selected="true" data-ret="key">B · Key on the bottom row</button>
+    <button role="tab" aria-selected="false" data-ret="swipe">C · Swipe the keys down</button>
+  </div>
+  <div class="stage">
+    <div class="phone ret-key" id="phone">
+      <div class="chat"><div class="bubble">what's the dimir mythic that draws?</div><div class="bubble">one sec</div></div>
+      <div class="compose"><div class="plus">+</div><div class="field"></div><div class="mic"></div></div>
+      <div class="kb mode-build" id="kb">
+        <div class="pill">
+          <span class="glyph search-glyph"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span>
+          <span class="glyph builder-glyph tap" id="pill-builder" title="Back to the builder"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.2" fill="var(--kb-pill)"/><circle cx="15" cy="12" r="2.2" fill="var(--kb-pill)"/><circle cx="8" cy="17" r="2.2" fill="var(--kb-pill)"/></svg></span>
+          <span class="q" id="q"></span>
+          <span class="clear off" id="clear" title="Clear and return to the builder">×</span>
+        </div>
+
+        <div class="builder" id="builder">
+          <div class="sentence"><div class="words" id="words"></div><div class="code" id="code"></div></div>
+          <div class="crumbs" id="crumbs"></div>
+          <div class="pane" id="pane"></div>
+          <div class="actions">
+            <button class="chip fn not" id="not-btn">Not</button>
+            <button class="chip add disabled" id="add-btn">Add</button>
+            <button class="chip search disabled" id="search-btn">Search</button>
+          </div>
+        </div>
+
+        <div class="gridwrap"><div class="grid" id="grid"></div></div>
+
+        <div class="qwerty" id="qwerty"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+      <div class="sysbar"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+    </div>
+  </div>
+  <div class="status" id="status">Pick a filter to start a clause. Tap the pill text to open the keyboard; the sliders key on its bottom row comes back here.</div>
+
+  <div class="notes">
+    <h2>Three ways back to the builder</h2>
+    <ul>
+      <li><b>A · Icon in the pill.</b> In typing mode and over results, the magnifier at the left of the pill becomes a sliders glyph. Tap it and the builder comes back with the query kept, ready to Add another clause. One control covers both modes and costs no key space. The magnifier only ever showed in the builder anyway, where it is redundant.</li>
+      <li><b>B · Key on the bottom row.</b> A sliders key sits between <code>123</code> and the globe; the space bar gives up the room. Discoverable in the place people look for mode keys, and it mirrors how <code>123</code> switches planes. Works only from typing mode: over results you tap the pill first, then the key.</li>
+      <li><b>C · Swipe the keys down.</b> A grabber above the syntax row; dragging the keys down slides the QWERTY away and reveals the builder, like closing a drawer. Costs about 12 pt of key height and nothing else, but gestures are invisible until found. Drag the grabber (or the keys) down in the mock-up.</li>
+    </ul>
+    <p><b>Chosen: B</b> (2026-09-23). The key is drawn like every other function key: same fill, white glyph, 1.25 key units wide like <code>123</code> and the globe. From the results grid the route is the pill text, then the key.</p>
+
+    <h2>What changed from the first round</h2>
+    <ul>
+      <li>Only the step-by-step layout. Crumbs read Filter, Operator, Value with no numbering, and the Operator crumb is absent for filters with a single operator (Type, Format, Keyword, Card text).</li>
+      <li>No clause tokens, no tinted colour letters, no <code>is:</code> filter.</li>
+      <li><b>Card text</b> has no value step. Picking it enables Add at once; Add drops <code>o:""</code> into the pill and opens the keyboard with the caret between the quotes. <b>Other…</b> under Type does the same with <code>t:</code>.</li>
+      <li>The keyboard types for real in the mock-up, so you can finish a clause and press return.</li>
+    </ul>
+
+    <h2>Clauses the builder writes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Filter</th><th>Operators (words → syntax)</th><th>Values</th><th>Example</th></tr>
+      <tr><td>Colour identity</td><td>fits within → <code>&lt;=</code> · is exactly → <code>=</code> · includes → <code>&gt;=</code></td><td>W U B R G toggles, Colourless</td><td><code>id&lt;=ub</code> Colour identity fits within Blue and Black (Dimir)</td></tr>
+      <tr><td>Colour</td><td>includes → <code>&gt;=</code> · is exactly → <code>=</code> · fits within → <code>&lt;=</code></td><td>W U B R G toggles, Colourless, Multicolour</td><td><code>c=rg</code> Colour is exactly Red and Green (Gruul)</td></tr>
+      <tr><td>Type</td><td>is → <code>:</code></td><td>Creature, Instant, Sorcery, Artifact, Enchantment, Planeswalker, Land, Battle, Legendary, Token, Other…</td><td><code>t:creature</code></td></tr>
+      <tr><td>Mana value</td><td>is <code>=</code> · at most <code>&lt;=</code> · at least <code>&gt;=</code> · less than <code>&lt;</code> · more than <code>&gt;</code></td><td>0–9, Even, Odd</td><td><code>mv&lt;=3</code> Mana value at most 3</td></tr>
+      <tr><td>Rarity</td><td>is <code>:</code> · or better <code>&gt;=</code> · or worse <code>&lt;=</code></td><td>Common, Uncommon, Rare, Mythic</td><td><code>r&gt;=rare</code> Rarity is Rare or better</td></tr>
+      <tr><td>Format</td><td>legal in → <code>:</code></td><td>Commander, Standard, Modern, Pioneer, Pauper, Legacy, Vintage, Brawl, Alchemy</td><td><code>f:commander</code></td></tr>
+      <tr><td>Power / Toughness</td><td>as mana value</td><td>0–9</td><td><code>pow&gt;=5</code> Power at least 5</td></tr>
+      <tr><td>Keyword</td><td>has → <code>:</code></td><td>Flying, Trample, Haste, Deathtouch, Lifelink, Flash, Hexproof, Vigilance, Menace, Ward, First strike, Double strike, Reach, Indestructible, Defender</td><td><code>kw:"first strike"</code></td></tr>
+      <tr><td>Card text</td><td>contains → <code>:</code></td><td>typed on the keyboard</td><td><code>o:"draw a card"</code></td></tr>
+    </table></div>
+    <p>On Scryfall <code>c:rg</code> means "includes red and green" but <code>id:ub</code> means "fits within blue and black" (checked against the API on 2026-09-23). The builder never emits a bare colon for those two, so the sentence and the syntax always agree.</p>
+  </div>
+</div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const COLOR_NAMES={w:'White',u:'Blue',b:'Black',r:'Red',g:'Green'};
+const ORDER='wubrg';
+const NICK={
+  wu:'Azorius',ub:'Dimir',br:'Rakdos',rg:'Gruul',wg:'Selesnya',wb:'Orzhov',ur:'Izzet',bg:'Golgari',wr:'Boros',ug:'Simic',
+  wub:'Esper',ubr:'Grixis',brg:'Jund',wrg:'Naya',wug:'Bant',wbg:'Abzan',wur:'Jeskai',ubg:'Sultai',wbr:'Mardu',urg:'Temur',
+  wubr:'Yore-Tiller',ubrg:'Glint-Eye',wbrg:'Dune-Brood',wurg:'Ink-Treader',wubg:'Witch-Maw',wubrg:'Five colour'
+};
+const NUMS=['0','1','2','3','4','5','6','7','8','9'];
+const numOps=[{w:'is',s:'='},{w:'at most',s:'<='},{w:'at least',s:'>='},{w:'less than',s:'<'},{w:'more than',s:'>'}];
+const TYPED={typed:true};
+const ATTRS=[
+  {id:'id',label:'Colour identity',kind:'colour',
+   ops:[{w:'fits within',s:'<='},{w:'is exactly',s:'='},{w:'includes',s:'>='}],
+   extras:[{v:'c',label:'Colourless',word:'colourless',forceOp:':'}],
+   words:(op,val)=>`Colour identity ${op} ${val}`},
+  {id:'c',label:'Colour',kind:'colour',
+   ops:[{w:'includes',s:'>='},{w:'is exactly',s:'='},{w:'fits within',s:'<='}],
+   extras:[{v:'c',label:'Colourless',word:'colourless',forceOp:':'},{v:'m',label:'Multicolour',word:'multicolour',forceOp:':'}],
+   words:(op,val)=>`Colour ${op} ${val}`},
+  {id:'t',label:'Type',kind:'list',ops:[{w:'is',s:':'}],
+   values:['Creature','Instant','Sorcery','Artifact','Enchantment','Planeswalker','Land','Battle','Legendary','Token'],
+   other:true,words:(op,val)=>`Type is ${val}`},
+  {id:'mv',label:'Mana value',kind:'number',ops:numOps,values:NUMS,
+   extras:[{v:'even',label:'Even',word:'even',forceOp:':'},{v:'odd',label:'Odd',word:'odd',forceOp:':'}],
+   words:(op,val)=>`Mana value ${op} ${val}`},
+  {id:'r',label:'Rarity',kind:'list',
+   ops:[{w:'is',s:':'},{w:'or better',s:'>=',after:true},{w:'or worse',s:'<=',after:true}],
+   values:['Common','Uncommon','Rare','Mythic'],
+   words:(op,val,o)=>o.after?`Rarity is ${val} ${op}`:`Rarity is ${val}`},
+  {id:'f',label:'Format',kind:'list',ops:[{w:'legal in',s:':'}],
+   values:['Commander','Standard','Modern','Pioneer','Pauper','Legacy','Vintage','Brawl','Alchemy'],
+   words:(op,val)=>`Legal in ${val}`},
+  {id:'pow',label:'Power',kind:'number',ops:numOps,values:NUMS,words:(op,val)=>`Power ${op} ${val}`},
+  {id:'tou',label:'Toughness',kind:'number',ops:numOps,values:NUMS,words:(op,val)=>`Toughness ${op} ${val}`},
+  {id:'kw',label:'Keyword',kind:'list',ops:[{w:'has',s:':'}],
+   values:['Flying','Trample','Haste','Deathtouch','Lifelink','Flash','Hexproof','Vigilance','Menace','Ward','First strike','Double strike','Reach','Indestructible','Defender'],
+   words:(op,val)=>`Has ${val}`},
+  {id:'o',label:'Card text',kind:'text',ops:[{w:'contains',s:':'}],words:()=>'Card text contains …'}
+];
+
+// The pill's text and caret, like QueryBuffer in the Kit.
+const buf={text:'',caret:0};
+function insert(s){buf.text=buf.text.slice(0,buf.caret)+s+buf.text.slice(buf.caret);buf.caret+=s.length}
+function backspace(){if(!buf.caret)return;buf.text=buf.text.slice(0,buf.caret-1)+buf.text.slice(buf.caret);buf.caret--}
+function appendClause(s){if(buf.text&&!buf.text.endsWith(' ')) buf.text+=' '; buf.text+=s; buf.caret=buf.text.length}
+
+const state={attr:null,op:null,val:null,colours:new Set(),negated:false,step:0};
+const kb=$('kb'),phone=$('phone');
+
+function colourString(){return ORDER.split('').filter(c=>state.colours.has(c)).join('')}
+function colourWords(){
+  const letters=colourString(), names=letters.split('').map(c=>COLOR_NAMES[c]);
+  let text=names.length<=1?names.join(''):names.slice(0,-1).join(', ')+' and '+names.at(-1);
+  if(NICK[letters]) text+=` (${NICK[letters]})`;
+  return text;
+}
+function currentValue(){
+  const a=state.attr; if(!a) return null;
+  if(a.kind==='text') return {syntax:'""',word:'…',typed:true};
+  if(a.kind==='colour'){
+    if(state.val&&state.val.forceOp) return {syntax:state.val.v,word:state.val.word,forceOp:':'};
+    const s=colourString(); return s?{syntax:s,word:colourWords()}:null;
+  }
+  if(!state.val) return null;
+  if(state.val===TYPED) return {syntax:'',word:'…',typed:true};
+  if(state.val.forceOp) return {syntax:state.val.v,word:state.val.word,forceOp:':'};
+  const low=state.val.toLowerCase();
+  return {syntax:low.includes(' ')?`"${low}"`:low,word:state.val};
+}
+function clause(){
+  const a=state.attr; if(!a) return null;
+  const v=currentValue(), op=state.op||a.ops[0];
+  const opSyntax=v&&v.forceOp?v.forceOp:op.s;
+  const words=a.words(op.w,v?v.word:'…',op);
+  const syntax=`${a.id}${opSyntax}${v?v.syntax:''}`;
+  return {words:(state.negated?'Not: ':'')+words,syntax:(state.negated?'-':'')+syntax,complete:!!v,typed:!!(v&&v.typed)};
+}
+function hasOpStep(a){return a&&a.ops.length>1}
+function hasValueStep(a){return a&&a.kind!=='text'}
+
+// pill
+function renderPill(){
+  const q=$('q'); q.textContent='';
+  const typing=kb.classList.contains('mode-type');
+  if(typing){
+    q.appendChild(document.createTextNode(buf.text.slice(0,buf.caret)));
+    const c=document.createElement('span'); c.className='caret'; q.appendChild(c);
+    q.appendChild(document.createTextNode(buf.text.slice(buf.caret)));
+  } else q.textContent=buf.text;
+  $('clear').classList.toggle('off',!buf.text&&!typing);
+  $('search-btn').classList.toggle('disabled',!buf.text.trim());
+}
+function esc(s){return s.replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]))}
+function setStatus(html){$('status').innerHTML=html}
+
+function renderSentence(){
+  const c=clause();
+  if(!c){ $('words').innerHTML='<span class="gap">Pick what to filter by</span>'; $('code').textContent=''; $('add-btn').classList.add('disabled'); $('add-btn').textContent='Add'; return; }
+  $('words').innerHTML=esc(c.words).replace('…','<span class="gap">…</span>');
+  $('code').textContent=c.syntax+(c.typed&&!c.syntax.endsWith('"')?'…':'');
+  $('add-btn').classList.toggle('disabled',!c.complete);
+  $('add-btn').textContent=c.typed?'Add and type':'Add';
+}
+
+function chip(label,on,fn,cls){const b=document.createElement('button'); b.className='chip'+(on?' on':'')+(cls?' '+cls:''); b.innerHTML=label; b.onclick=fn; return b}
+function pickAttr(a){ state.attr=a; state.op=null; state.val=null; state.colours.clear(); state.step=hasOpStep(a)?1:(hasValueStep(a)?2:0); refresh(); }
+function valueButtons(a){
+  const out=[];
+  if(a.kind==='colour'){
+    ORDER.split('').forEach(c=>out.push(chip(c.toUpperCase(),state.colours.has(c)&&!(state.val&&state.val.forceOp),()=>{state.val=null; state.colours.has(c)?state.colours.delete(c):state.colours.add(c); refresh();},'mana')));
+    a.extras.forEach(x=>out.push(chip(x.label,state.val===x,()=>{state.val=state.val===x?null:x; state.colours.clear(); refresh();})));
+  } else {
+    (a.values||[]).forEach(v=>out.push(chip(v,state.val===v,()=>{state.val=state.val===v?null:v; refresh();})));
+    (a.extras||[]).forEach(x=>out.push(chip(x.label,state.val===x,()=>{state.val=state.val===x?null:x; refresh();})));
+    if(a.other) out.push(chip('Other… <span class="sub">type it</span>',state.val===TYPED,()=>{state.val=state.val===TYPED?null:TYPED; refresh();},'go'));
+  }
+  return out;
+}
+function renderSteps(){
+  const a=state.attr, cr=$('crumbs'); cr.innerHTML='';
+  const v=currentValue();
+  const defs=[
+    {label:'Filter',done:a?a.label:null,show:true},
+    {label:'Operator',done:a?(state.op||a.ops[0]).w:null,show:hasOpStep(a)},
+    {label:'Value',done:v&&!v.typed?v.word:null,show:!a||hasValueStep(a)}
+  ];
+  let cur=state.step;
+  defs.forEach((d,i)=>{
+    const el=document.createElement('div'); el.className='crumb'+(i===cur?' cur':''); el.hidden=!d.show;
+    el.innerHTML=d.done&&i!==cur?`<b>${esc(d.done)}</b>`:d.label;
+    el.onclick=()=>{ if(i===0||a){ state.step=i; refresh(); } };
+    cr.appendChild(el);
+  });
+  const p=$('pane'); p.innerHTML=''; p.className='pane';
+  if(cur===0){ p.classList.add('grid3'); ATTRS.forEach(x=>p.appendChild(chip(x.label,state.attr===x,()=>pickAttr(x)))); if(a&&a.kind==='text'){ const h=document.createElement('div'); h.className='hint'; h.textContent='Card text is typed. Add puts o:"" in the pill and opens the keyboard with the caret between the quotes.'; p.prepend(h);} }
+  else if(cur===1){ p.classList.add('grid2'); a.ops.forEach(o=>p.appendChild(chip(o.w,(state.op||a.ops[0])===o,()=>{state.op=o; if(state.val&&state.val.forceOp) state.val=null; state.step=2; refresh();}))); }
+  else { if(a.kind!=='colour'&&a.kind!=='number') p.classList.add('grid2'); valueButtons(a).forEach(b=>p.appendChild(b)); }
+}
+function refresh(){ renderPill(); renderSentence(); renderSteps(); }
+function resetClause(){ state.attr=null; state.op=null; state.val=null; state.colours.clear(); state.negated=false; $('not-btn').classList.remove('on'); state.step=0; }
+
+// actions
+$('not-btn').onclick=()=>{ state.negated=!state.negated; $('not-btn').classList.toggle('on',state.negated); refresh(); };
+$('add-btn').onclick=()=>{
+  const c=clause(); if(!c||!c.complete) return;
+  appendClause(c.syntax);
+  if(c.typed){ if(c.syntax.endsWith('""')) buf.caret=buf.text.length-1; resetClause(); enterTyping(`Added <code>${esc(c.syntax)}</code> and opened the keyboard with the caret ready. Return runs the search.`); return; }
+  setStatus(`Added <code>${esc(c.syntax)}</code>. Nothing was sent; keep adding or press Search.`);
+  resetClause(); refresh();
+};
+$('search-btn').onclick=()=>{ if(buf.text.trim()) showResults(); };
+$('clear').onclick=()=>{ buf.text=''; buf.caret=0; resetClause(); setMode('build'); refresh(); setStatus('Cleared. Back in the builder with an empty pill.'); };
+$('q').onclick=()=>{ if(kb.classList.contains('mode-type')) return; buf.caret=buf.text.length; enterTyping('Typing mode, query kept. The colon sits in the middle of the syntax row, half a key wider.'); };
+$('pill-builder').onclick=()=>backToBuilder('pill');
+
+function setMode(m){ kb.classList.remove('mode-build','mode-results','mode-type'); kb.classList.add('mode-'+m); }
+function showResults(){
+  setMode('results'); const g=$('grid'); g.innerHTML='';
+  for(let i=0;i<12;i++){ const c=document.createElement('div'); c.className='card'; c.textContent='card '+(i+1); g.appendChild(c); }
+  renderPill();
+  const ret=phone.classList.contains('ret-pill')?'the sliders glyph in the pill':'× (clears) or the pill text, then the way back from typing mode';
+  setStatus(`Searching <code>${esc(buf.text)}</code>. Real cards would fill the grid. Back to the builder: ${ret}.`);
+  toast('Searching…');
+}
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('on'),900); }
+function backToBuilder(via){
+  const q=$('qwerty');
+  const finish=()=>{ q.classList.remove('sliding'); setMode('build'); resetClause(); refresh(); setStatus(`Back in the builder with <code>${esc(buf.text.trim())||'an empty pill'}</code> kept. Add appends the next clause.`); };
+  if(via==='swipe'&&kb.classList.contains('mode-type')){ q.classList.add('sliding'); setTimeout(finish,230); } else finish();
+}
+
+// typing mode
+const SYNTAX=['"','!','-','(','<',':','>',')','=','/'];
+const SLIDERS='<svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.2" fill="var(--kb-fn)"/><circle cx="15" cy="12" r="2.2" fill="var(--kb-fn)"/><circle cx="8" cy="17" r="2.2" fill="var(--kb-fn)"/></svg>';
+function keyEl(label,cls,fn){ const k=document.createElement('div'); k.className='key'+(cls?' '+cls:''); k.innerHTML=label; if(fn) k.onclick=fn; return k; }
+function type(ch){ insert(ch); renderPill(); }
+function renderQwerty(){
+  const q=$('qwerty'); q.innerHTML='';
+  const grab=document.createElement('div'); grab.className='grabber'; q.appendChild(grab);
+  const r0=document.createElement('div'); r0.className='krow syntax'; SYNTAX.forEach(ch=>r0.appendChild(keyEl(ch,ch===':'?'w15 colon':'',()=>type(ch)))); q.appendChild(r0);
+  [['q','w','e','r','t','y','u','i','o','p'],['a','s','d','f','g','h','j','k','l']].forEach(row=>{ const r=document.createElement('div'); r.className='krow'; row.forEach(ch=>r.appendChild(keyEl(ch,'',()=>type(ch)))); q.appendChild(r); });
+  const r3=document.createElement('div'); r3.className='krow'; r3.appendChild(keyEl('⇧','fn w15')); ['z','x','c','v','b','n','m'].forEach(ch=>r3.appendChild(keyEl(ch,'',()=>type(ch)))); r3.appendChild(keyEl('⌫','fn w15',()=>{backspace(); renderPill();})); q.appendChild(r3);
+  const r4=document.createElement('div'); r4.className='krow';
+  r4.appendChild(keyEl('123','fn w125'));
+  r4.appendChild(keyEl(SLIDERS,'fn w125 builder',()=>backToBuilder('key')));
+  r4.appendChild(keyEl('🌐','fn w125'));
+  r4.appendChild(keyEl('','w5 space',()=>type(' ')));
+  r4.appendChild(keyEl('⏎','fn w25',()=>{ if(buf.text.trim()) showResults(); }));
+  q.appendChild(r4);
+  // swipe down (option C): drag the grabber or the keys
+  let startY=null;
+  q.addEventListener('pointerdown',e=>{ if(phone.classList.contains('ret-swipe')) startY=e.clientY; });
+  q.addEventListener('pointermove',e=>{ if(startY!==null&&phone.classList.contains('ret-swipe')&&e.clientY-startY>40){ startY=null; backToBuilder('swipe'); } });
+  q.addEventListener('pointerup',()=>startY=null);
+  q.addEventListener('pointercancel',()=>startY=null);
+}
+function enterTyping(status){ setMode('type'); renderPill(); setStatus(status); }
+
+// tabs
+document.querySelectorAll('.tabs [role=tab]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs [role=tab]').forEach(x=>x.setAttribute('aria-selected',x===b));
+  phone.classList.remove('ret-pill','ret-key','ret-swipe'); phone.classList.add('ret-'+b.dataset.ret);
+  const msg={pill:'Option A: over the keyboard or results, the pill’s left glyph becomes sliders. Tap it to come back here.',key:'Option B: a sliders key sits between 123 and the globe on the keyboard’s bottom row.',swipe:'Option C: drag the keys downward (or the grabber above them) to slide the keyboard away.'}[b.dataset.ret];
+  setStatus(msg);
+});
+
+renderQwerty(); refresh();
+})();
+</script>
+</body></html>
