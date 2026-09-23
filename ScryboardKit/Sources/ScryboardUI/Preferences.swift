@@ -41,6 +41,25 @@ public enum CardSize: String, Sendable, Hashable, CaseIterable, Codable {
     }
 }
 
+/// What tapping a card puts on the pasteboard.
+public enum CopyFormat: String, Sendable, Hashable, CaseIterable, Codable {
+    /// The `normal` scan as a JPEG. The product's reason to exist.
+    case image
+    /// The card's page on scryfall.com, which chat apps unfurl into a preview.
+    case link
+    /// The card's name; from the printings view, a decklist line naming the
+    /// printing (see `Card.decklistLine`).
+    case text
+
+    public var title: String {
+        switch self {
+        case .image: "Image"
+        case .link: "Scryfall link"
+        case .text: "Text"
+        }
+    }
+}
+
 /// What the user set in the container app. Read by the extension on every
 /// appearance, so a change in the app shows the next time the keyboard opens.
 public struct Preferences: Sendable, Hashable, Codable {
@@ -48,11 +67,30 @@ public struct Preferences: Sendable, Hashable, Codable {
     public var order: SearchOrder
     public var direction: SortDirection
     public var cardSize: CardSize
+    public var copyFormat: CopyFormat
 
-    public init(order: SearchOrder = .edhrec, direction: SortDirection = .auto, cardSize: CardSize = .medium) {
+    public init(
+        order: SearchOrder = .edhrec,
+        direction: SortDirection = .auto,
+        cardSize: CardSize = .medium,
+        copyFormat: CopyFormat = .image
+    ) {
         self.order = order
         self.direction = direction
         self.cardSize = cardSize
+        self.copyFormat = copyFormat
+    }
+
+    /// Every field falls back to its default when missing, so preferences
+    /// saved by an older build survive a new field being added rather than
+    /// resetting the lot.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = Preferences()
+        order = try container.decodeIfPresent(SearchOrder.self, forKey: .order) ?? defaults.order
+        direction = try container.decodeIfPresent(SortDirection.self, forKey: .direction) ?? defaults.direction
+        cardSize = try container.decodeIfPresent(CardSize.self, forKey: .cardSize) ?? defaults.cardSize
+        copyFormat = try container.decodeIfPresent(CopyFormat.self, forKey: .copyFormat) ?? defaults.copyFormat
     }
 }
 

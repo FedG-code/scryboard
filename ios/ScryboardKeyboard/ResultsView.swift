@@ -1,4 +1,5 @@
 import UIKit
+import UniformTypeIdentifiers
 import ScryboardKit
 import ScryboardUI
 
@@ -16,6 +17,9 @@ final class ResultsView: UIView {
     var onSelect: ((Card) -> Void)?
     /// A held card. Tap copies; hold shows every printing.
     var onLongPress: ((Card) -> Void)?
+    /// Set by the owner while the grid shows every printing of one card, so
+    /// holding a card does nothing rather than expanding it again.
+    var showsPrintings = false
     /// Called as cells come on screen, so the owner can page in more results.
     var onCardAppeared: ((Int) -> Void)?
     /// The grid stopped moving. The owner notes where it is.
@@ -82,11 +86,17 @@ final class ResultsView: UIView {
         collection.dataSource = self
         collection.delegate = self
         collection.register(CardCell.self, forCellWithReuseIdentifier: CardCell.reuseIdentifier)
+        // Experiment (2026-09-23): can a card be dragged out of the keyboard
+        // into the host app? On by default on iPad only, so set explicitly.
+        collection.dragDelegate = self
+        collection.dragInteractionEnabled = true
         collection.translatesAutoresizingMaskIntoConstraints = false
         addSubview(collection)
 
+        // Longer than the system's drag lift (about half a second), so a
+        // hold that was going to become a drag has already done so.
         let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
-        hold.minimumPressDuration = 0.4
+        hold.minimumPressDuration = 0.7
         collection.addGestureRecognizer(hold)
 
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
@@ -119,8 +129,11 @@ final class ResultsView: UIView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    /// Fires once the hold has outlasted the drag lift with no drag begun.
+    /// Does nothing while the grid already shows printings: there is nothing
+    /// further to expand.
     @objc private func held(_ gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began,
+        guard gesture.state == .began, !collection.hasActiveDrag, !showsPrintings,
               let indexPath = collection.indexPathForItem(at: gesture.location(in: collection))
         else { return }
         onLongPress?(cards[indexPath.item])
@@ -215,6 +228,36 @@ extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         if !decelerate { onScrollSettled?() }
+    }
+}
+
+extension ResultsView: UICollectionViewDragDelegate {
+    /// One item: the `normal` JPEG, fetched only if something accepts the
+    /// drop, plus the card's Scryfall page for targets that take a URL.
+    func collectionView(_ collectionView: UICollectionView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+        let card = cards[indexPath.item]
+        guard let url = card.imageURL(.normal) else { return [] }
+        let provider = NSItemProvider()
+        provider.suggestedName = card.name
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.jpeg.identifier, visibility: .all) { completion in
+            let progress = Progress(totalUnitCount: 1)
+            Task {
+                do {
+                    let data = try await ImageStore.shared.imageData(for: url)
+                    progress.completedUnitCount = 1
+                    completion(data, nil)
+                } catch {
+                    completion(nil, error)
+                }
+            }
+            return progress
+        }
+        if let page = card.scryfallURI {
+            provider.registerObject(page as NSURL, visibility: .all)
+        }
+        let item = UIDragItem(itemProvider: provider)
+        item.localObject = card
+        return [item]
     }
 }
 

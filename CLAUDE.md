@@ -44,6 +44,12 @@ something it can show, not what it is.
 - **Tap a card → `normal` JPEG to the pasteboard → toast** "Copied". Just that
   word: the longer "tap and hold to paste" read as an instruction for the
   keyboard itself and confused. The grid stays put; the card joins recents.
+  A **copy format** setting in the container app (`CopyFormat`, added
+  2026-09-23) can swap the image for the card's Scryfall page (`scryfall_uri`,
+  written as both URL and text) or plain text: the card name, or from the
+  printings view the decklist line `Name (SET) number` (`Card.decklistLine`
+  in the Kit, tested). Image is the default; the toast then says "Link
+  copied" / "Name copied".
 - **Hold a card → every printing of it**, newest first, in the same grid. That
   is the printing picker; tapping a suggested name does the same.
 - `screenshots/` at the repo root is gitignored: keep local screenshots there,
@@ -76,7 +82,7 @@ simulator, archives and TestFlight uploads.
 
 ## State of play
 
-Last updated 2026-09-22, start of the polish pass.
+Last updated 2026-09-23, polish pass.
 
 - **Done:** milestones 1–5, verified end to end on the developer's iPhone via
   TestFlight on 2026-09-22: search, grid, tap-to-copy, and paste into a real
@@ -84,7 +90,7 @@ Last updated 2026-09-22, start of the polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 110 tests across 13 suites, no warnings, Swift 6 language mode,
+- **Green:** 116 tests across 15 suites, no warnings, Swift 6 language mode,
   `cd ScryboardKit && swift test`.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
@@ -138,6 +144,14 @@ Last updated 2026-09-22, start of the polish pass.
      `QueryBuffer` (Kit, tested) keeps text plus caret offset; the pill draws
      the caret at the measured position, moves it on tap or drag, and scrolls
      a long query to keep it in view. Awaiting a phone check.
+  12. ~~Container app raised the keyboard on open, hiding the settings, and
+     nothing dismissed it~~ — done 2026-09-23: no auto-focus; a tap anywhere
+     outside the field or a scroll puts it away.
+  13. ~~Copy format setting: image / Scryfall link / text~~ — done 2026-09-23
+     (see the UX model). The printings-view text format is a proposal,
+     `Name (SET) number`, awaiting the developer's verdict; it is one
+     property in the Kit to change. `Preferences` now decodes missing keys
+     to their defaults, so adding a field never resets saved settings.
 - **Next, after the polish list:**
   1. Milestone 6: container app onboarding (enable keyboard, Full Access and
      why the system warning is scary, the one-time paste permission) and the
@@ -182,6 +196,19 @@ Last updated 2026-09-22, start of the polish pass.
 ## Core decisions (settled — do not revisit without asking)
 
 - **Pasteboard flow, not link insertion.** Tapping a card writes the image to `UIPasteboard.general`. We do not insert Scryfall URLs as text.
+  Re-verified 2026-09-23 against the iOS 26 SDK (Xcode 27) after testers
+  asked for one-tap paste: `UITextDocumentProxy` can only `insertText`,
+  `deleteBackward`, move the caret and set marked text. There is no image or
+  attachment insertion for keyboard extensions, which is why GIPHY, Tenor and
+  Gboard all copy to the clipboard too. The only true image insertion API is
+  `MSConversation.insertAttachment` in an iMessage app extension, Messages
+  only. Android's `InputConnection.commitContent` is the real thing.
+  **Drag and drop works, though:** tested on the iPad 2026-09-23, a card
+  dragged out of the grid lands in the host as the `normal` JPEG (the
+  Scryfall page URL rides along for targets that take links). The grid is a
+  `UICollectionViewDragDelegate`, drag enabled on iPhone too. Hold is 0.7 s
+  so the system's drag lift (about 0.5 s) wins when the finger moves; in the
+  printings view the hold is disabled. Phone check pending.
 - **No server component.** The keyboard talks directly to the Scryfall API. Zero backend, zero hosting costs.
 - **No local card database, no offline mode.** Scryfall's server evaluates all search syntax (including `otag:`), so there is nothing to sync or bundle. The user is in a messaging context and therefore online.
 - **No gallery writes, ever.** Images live in the extension's cache directory (evictable) and the pasteboard only.

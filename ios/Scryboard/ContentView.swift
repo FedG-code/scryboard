@@ -36,8 +36,15 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                 } header: {
                     Text("Search results")
+                }
+                Section {
+                    Picker("Tapping a card copies", selection: $preferences.copyFormat) {
+                        ForEach(CopyFormat.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                } header: {
+                    Text("Copying")
                 } footer: {
-                    Text("Applies to searches you type. A query with its own order: keeps it. You can also pinch the grid to change the card size.")
+                    Text("Text copies the card’s name. From the printings view (hold a card) it copies the printing instead, as Name (SET) number, the line Moxfield and Arena understand.")
                 }
                 Section("About") {
                     Text(Attribution.text)
@@ -45,11 +52,12 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
+            // Tapping anywhere outside the text field puts the keyboard away.
+            // Simultaneous, so rows and pickers still get their taps.
+            .simultaneousGesture(TapGesture().onEnded { scratchFocused = false })
             .navigationTitle("Scryboard")
-            .onAppear {
-                scratchFocused = true
-                preferences = PreferencesStore.shared.load()
-            }
+            .onAppear { preferences = PreferencesStore.shared.load() }
             .onChange(of: preferences) { updated in PreferencesStore.shared.save(updated) }
         }
     }

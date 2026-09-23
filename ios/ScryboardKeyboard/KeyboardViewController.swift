@@ -32,7 +32,9 @@ final class KeyboardViewController: UIInputViewController {
     /// pill while printings are shown.
     private var query = QueryBuffer()
     /// The held card whose printings fill the grid, if any.
-    private var printings: String?
+    private var printings: String? {
+        didSet { resultsView.showsPrintings = printings != nil }
+    }
     private var keyboardState = KeyboardState()
     /// Re-read on every appearance, so a change in the app shows next time.
     private var preferences = Preferences()
@@ -413,7 +415,30 @@ final class KeyboardViewController: UIInputViewController {
     // MARK: - Copying
 
     /// The product: full-size scan to the pasteboard, toast, let the bytes go.
+    /// Or, by preference, the card's Scryfall page or its name as text.
     private func copy(_ card: Card) {
+        switch preferences.copyFormat {
+        case .image:
+            copyImage(of: card)
+        case .link:
+            guard let link = card.scryfallURI else { return }
+            // Both representations, so apps that read only text still paste.
+            UIPasteboard.general.setItems([[
+                UTType.url.identifier: link,
+                UTType.utf8PlainText.identifier: link.absoluteString,
+            ]])
+            RecentCards.remember(card)
+            toast.show("Link copied")
+        case .text:
+            // The printings view is where the printing matters; elsewhere
+            // the name alone reads better in a chat.
+            UIPasteboard.general.string = printings == nil ? card.name : card.decklistLine
+            RecentCards.remember(card)
+            toast.show("Name copied")
+        }
+    }
+
+    private func copyImage(of card: Card) {
         guard let url = card.imageURL(.normal) else { return }
         copyTask?.cancel()
         toast.show("Copying…")
