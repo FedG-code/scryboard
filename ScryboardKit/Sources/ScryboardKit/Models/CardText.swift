@@ -17,3 +17,16 @@ extension Card {
         "\(name) (\(setCode.uppercased())) \(collectorNumber)"
     }
 }
+
+extension Card {
+    /// The card's page on scryfall.com, clean. The API's `scryfall_uri`
+    /// carries `?utm_source=api`, which is Scryfall's own analytics and only
+    /// noise in a chat, so the query is dropped before the link is shared.
+    public var pageURL: URL? {
+        guard let scryfallURI,
+              var components = URLComponents(url: scryfallURI, resolvingAgainstBaseURL: false)
+        else { return nil }
+        components.query = nil
+        return components.url
+    }
+}

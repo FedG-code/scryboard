@@ -7,17 +7,14 @@ import ScryboardUI
 /// attribution screen. The attribution text is already here because it is
 /// non-negotiable and must never be absent from a build.
 struct ContentView: View {
-    @State private var scratch = ""
-    @FocusState private var scratchFocused: Bool
+    @State private var scratchEditing = false
     @State private var preferences = PreferencesStore.shared.load()
 
     var body: some View {
         NavigationStack {
             List {
                 Section("Try it") {
-                    TextField("Tap here, then switch to Scryboard with the globe key", text: $scratch, axis: .vertical)
-                        .focused($scratchFocused)
-                        .lineLimit(3...6)
+                    ScratchPad(isEditing: $scratchEditing)
                 }
                 Section("Set up") {
                     Label("Settings › General › Keyboard › Keyboards › Add New Keyboard › Scryboard", systemImage: "keyboard")
@@ -54,8 +51,14 @@ struct ContentView: View {
             }
             .scrollDismissesKeyboard(.immediately)
             // Tapping anywhere outside the text field puts the keyboard away.
-            // Simultaneous, so rows and pickers still get their taps.
-            .simultaneousGesture(TapGesture().onEnded { scratchFocused = false })
+            // Only while it is up: a tap gesture on the list makes the menu
+            // pickers need a long press, so it is switched off otherwise.
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                },
+                including: scratchEditing ? .all : .none
+            )
             .navigationTitle("Scryboard")
             .onAppear { preferences = PreferencesStore.shared.load() }
             .onChange(of: preferences) { updated in PreferencesStore.shared.save(updated) }

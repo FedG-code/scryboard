@@ -206,9 +206,21 @@ Last updated 2026-09-23, polish pass.
   **Drag and drop works, though:** tested on the iPad 2026-09-23, a card
   dragged out of the grid lands in the host as the `normal` JPEG (the
   Scryfall page URL rides along for targets that take links). The grid is a
-  `UICollectionViewDragDelegate`, drag enabled on iPhone too. Hold is 0.7 s
-  so the system's drag lift (about 0.5 s) wins when the finger moves; in the
-  printings view the hold is disabled. Phone check pending.
+  `UIDragInteraction` of its own (the collection view's drag delegate never
+  reports how a drop ended), enabled on iPhone too. On the Image setting the
+  drag carries the JPEG plus the clean page link (`Card.pageURL`, no
+  `utm_source`) so a field that takes no images gets the link; the receiver
+  chooses, and WhatsApp takes the link in its text box and the image in the
+  chat. Link and Text settings drag one thing. An accepted drop joins
+  recents; a refused one shows nothing. Hold for printings is 0.7 s, fires
+  while the finger is down, cancels the drag lift (which comes at about
+  0.5 s) by toggling the interaction off for a run-loop turn, and is
+  disabled in the printings view. Moving before 0.7 s drags. Phone check of
+  the lift cancel pending.
+- **The container app's "Try it" field is a `UITextView` of our own**
+  (`ScratchPad`, 2026-09-23) that accepts image pastes and drops inline,
+  since the stock SwiftUI field ignores both and pasting a card is the
+  point.
 - **No server component.** The keyboard talks directly to the Scryfall API. Zero backend, zero hosting costs.
 - **No local card database, no offline mode.** Scryfall's server evaluates all search syntax (including `otag:`), so there is nothing to sync or bundle. The user is in a messaging context and therefore online.
 - **No gallery writes, ever.** Images live in the extension's cache directory (evictable) and the pasteboard only.

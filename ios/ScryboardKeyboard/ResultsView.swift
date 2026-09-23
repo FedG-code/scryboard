@@ -20,6 +20,13 @@ final class ResultsView: UIView {
     /// Set by the owner while the grid shows every printing of one card, so
     /// holding a card does nothing rather than expanding it again.
     var showsPrintings = false
+    /// What a drag hands over: the same thing a tap would copy. Set by the
+    /// owner from the preferences.
+    var copyFormat: CopyFormat = .image
+    /// A drag ended over the host app. `accepted` is false when the app
+    /// refused the drop; a drag let go over the keyboard itself is not
+    /// reported, since nothing was refused.
+    var onDragEnded: ((Card, _ accepted: Bool) -> Void)?
     /// Called as cells come on screen, so the owner can page in more results.
     var onCardAppeared: ((Int) -> Void)?
     /// The grid stopped moving. The owner notes where it is.
@@ -46,6 +53,9 @@ final class ResultsView: UIView {
     }
 
     private let collection: UICollectionView
+    private lazy var dragInteraction = UIDragInteraction(delegate: self)
+    /// A card is moving. The hold recognizer stands down meanwhile.
+    private var dragging = false
     /// Where to scroll once the grid has a size. Set by `show(_:scrollTo:)`
     /// before the first layout, when scrolling would have nowhere to go.
     private var pendingScroll: Int?
@@ -86,10 +96,12 @@ final class ResultsView: UIView {
         collection.dataSource = self
         collection.delegate = self
         collection.register(CardCell.self, forCellWithReuseIdentifier: CardCell.reuseIdentifier)
-        // Experiment (2026-09-23): can a card be dragged out of the keyboard
-        // into the host app? On by default on iPad only, so set explicitly.
-        collection.dragDelegate = self
-        collection.dragInteractionEnabled = true
+        // Cards drag out of the grid into the host app. Our own interaction
+        // rather than the collection view's drag delegate, because only this
+        // one hears how the drop ended. Enabled explicitly: the default is
+        // iPad only.
+        dragInteraction.isEnabled = true
+        collection.addInteraction(dragInteraction)
         collection.translatesAutoresizingMaskIntoConstraints = false
         addSubview(collection)
 
@@ -130,13 +142,24 @@ final class ResultsView: UIView {
     required init?(coder: NSCoder) { fatalError("not used") }
 
     /// Fires once the hold has outlasted the drag lift with no drag begun.
-    /// Does nothing while the grid already shows printings: there is nothing
-    /// further to expand.
+    /// The system lifts the card at about half a second; a hold that gets
+    /// this far was not going to drag, so the lift is cancelled and the card
+    /// settles back as the printings come in. Does nothing while the grid
+    /// already shows printings: there is nothing further to expand.
     @objc private func held(_ gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began, !collection.hasActiveDrag, !showsPrintings,
+        guard gesture.state == .began, !dragging, !showsPrintings,
               let indexPath = collection.indexPathForItem(at: gesture.location(in: collection))
         else { return }
+        cancelLift()
         onLongPress?(cards[indexPath.item])
+    }
+
+    /// Disabling the interaction tears its recognizers down, which ends a
+    /// lift in progress. It comes back on the next run loop turn, too late to
+    /// see the touch that is still down.
+    private func cancelLift() {
+        dragInteraction.isEnabled = false
+        DispatchQueue.main.async { [dragInteraction] in dragInteraction.isEnabled = true }
     }
 
     /// One size step per pinch, in the direction of the gesture. Anything
@@ -231,33 +254,77 @@ extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
     }
 }
 
-extension ResultsView: UICollectionViewDragDelegate {
-    /// One item: the `normal` JPEG, fetched only if something accepts the
-    /// drop, plus the card's Scryfall page for targets that take a URL.
-    func collectionView(_ collectionView: UICollectionView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+extension ResultsView: UIDragInteractionDelegate {
+    /// One item, shaped by the copy format. For images the card's page link
+    /// rides along as a second representation, so a field that takes no
+    /// images (Reddit, a chat's text box) still gets something; a field that
+    /// takes both may prefer the link, which is the receiver's call. The JPEG
+    /// is fetched only if something accepts the drop.
+    func dragInteraction(_ interaction: UIDragInteraction, itemsForBeginning session: UIDragSession) -> [UIDragItem] {
+        guard let indexPath = collection.indexPathForItem(at: session.location(in: collection)) else { return [] }
         let card = cards[indexPath.item]
-        guard let url = card.imageURL(.normal) else { return [] }
         let provider = NSItemProvider()
         provider.suggestedName = card.name
-        provider.registerDataRepresentation(forTypeIdentifier: UTType.jpeg.identifier, visibility: .all) { completion in
-            let progress = Progress(totalUnitCount: 1)
-            Task {
-                do {
-                    let data = try await ImageStore.shared.imageData(for: url)
-                    progress.completedUnitCount = 1
-                    completion(data, nil)
-                } catch {
-                    completion(nil, error)
+        switch copyFormat {
+        case .image:
+            guard let url = card.imageURL(.normal) else { return [] }
+            provider.registerDataRepresentation(forTypeIdentifier: UTType.jpeg.identifier, visibility: .all) { completion in
+                let progress = Progress(totalUnitCount: 1)
+                Task {
+                    do {
+                        let data = try await ImageStore.shared.imageData(for: url)
+                        progress.completedUnitCount = 1
+                        completion(data, nil)
+                    } catch {
+                        completion(nil, error)
+                    }
                 }
+                return progress
             }
-            return progress
-        }
-        if let page = card.scryfallURI {
+            if let page = card.pageURL {
+                provider.registerObject(page as NSURL, visibility: .all)
+            }
+        case .link:
+            guard let page = card.pageURL else { return [] }
             provider.registerObject(page as NSURL, visibility: .all)
+        case .text:
+            let text = showsPrintings ? card.decklistLine : card.name
+            provider.registerObject(text as NSString, visibility: .all)
         }
         let item = UIDragItem(itemProvider: provider)
         item.localObject = card
         return [item]
+    }
+
+    /// Lift the cell alone, not a snapshot of the whole grid.
+    func dragInteraction(_ interaction: UIDragInteraction, previewForLifting item: UIDragItem, session: UIDragSession) -> UITargetedDragPreview? {
+        guard let indexPath = collection.indexPathForItem(at: session.location(in: collection)),
+              let cell = collection.cellForItem(at: indexPath)
+        else { return nil }
+        let parameters = UIDragPreviewParameters()
+        parameters.visiblePath = UIBezierPath(roundedRect: cell.bounds, cornerRadius: 6)
+        return UITargetedDragPreview(view: cell, parameters: parameters)
+    }
+
+    func dragInteraction(_ interaction: UIDragInteraction, sessionWillBegin session: UIDragSession) {
+        dragging = true
+    }
+
+    /// The only word back from a drop: whether anything took it. A drag let
+    /// go over the grid itself was abandoned, not refused, and is not reported.
+    func dragInteraction(_ interaction: UIDragInteraction, session: UIDragSession, didEndWith operation: UIDropOperation) {
+        dragging = false
+        guard let card = session.items.first?.localObject as? Card else { return }
+        switch operation {
+        case .copy, .move:
+            onDragEnded?(card, true)
+        case .cancel, .forbidden:
+            if !collection.bounds.contains(session.location(in: collection)) {
+                onDragEnded?(card, false)
+            }
+        @unknown default:
+            break
+        }
     }
 }
 

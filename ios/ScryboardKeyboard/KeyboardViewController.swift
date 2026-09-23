@@ -82,6 +82,7 @@ final class KeyboardViewController: UIInputViewController {
     private func applyPreferences() {
         preferences = PreferencesStore.shared.load()
         resultsView.cardSize = preferences.cardSize
+        resultsView.copyFormat = preferences.copyFormat
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -181,6 +182,10 @@ final class KeyboardViewController: UIInputViewController {
         }
 
         resultsView.onSelect = { [weak self] card in self?.copy(card) }
+        // A refused drop gets no toast: the card snapping back says it.
+        resultsView.onDragEnded = { card, accepted in
+            if accepted { RecentCards.remember(card) }
+        }
         resultsView.onLongPress = { [weak self] card in self?.showPrintings(of: card) }
         resultsView.onPinchToSize = { [weak self] size in
             guard let self else { return }
@@ -421,7 +426,7 @@ final class KeyboardViewController: UIInputViewController {
         case .image:
             copyImage(of: card)
         case .link:
-            guard let link = card.scryfallURI else { return }
+            guard let link = card.pageURL else { return }
             // Both representations, so apps that read only text still paste.
             UIPasteboard.general.setItems([[
                 UTType.url.identifier: link,
