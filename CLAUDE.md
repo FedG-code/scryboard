@@ -84,6 +84,12 @@ something it can show, not what it is.
   never in the repo. `docs/prototypes/` holds HTML mock-ups of UI options that
   were compared before a decision; thumbnails there hotlink Scryfall, never
   embed images.
+- **A failed request shows its message and a small Reload button** (added
+  2026-09-25): no connection, a timeout, an unexpected status. Reload sends
+  the same request again (the query, or the printings lookup). A message
+  from Scryfall itself, such as a bad query, shows without the button;
+  asking again would not help. `ResultsView.Status.failure` versus
+  `.message`.
 - **No Full Access → no network.** `hasFullAccess == false` replaces the grid
   with a short "turn on Full Access in Settings" explainer. Nothing else works
   without it, so nothing else is shown.
@@ -176,9 +182,10 @@ Last updated 2026-09-23, polish pass.
      nothing dismissed it~~ — moot since 2026-09-23: the text field itself
      was removed (see Core decisions).
   13. ~~Copy format setting: image / Scryfall link / text~~ — done 2026-09-23
-     (see the UX model). The printings-view text format is a proposal,
-     `Name (SET) number`, awaiting the developer's verdict; it is one
-     property in the Kit to change. `Preferences` now decodes missing keys
+     (see the UX model). The printings-view text format `Name (SET) number`
+     was confirmed by the developer on 2026-09-25. The segment title is
+     "Link" (shortened from "Scryfall link" the same day to fit the
+     segmented control). `Preferences` now decodes missing keys
      to their defaults, so adding a field never resets saved settings.
 - **Query builder shipped to TestFlight 2026-09-23** (see the UX model),
   built in one pass from the mock-up without a device check, so the first
@@ -197,8 +204,7 @@ Last updated 2026-09-23, polish pass.
      Decided 2026-09-22: the container app shows settings only; the App
      Group carries nothing else.
   2. Milestone 7 polish: double-faced **flip in the grid** (decided
-     2026-09-22; copying sends the face currently shown), designed
-     empty/offline/error states, sharper thumbnails on iPad (small scan is
+     2026-09-22; copying sends the face currently shown), sharper thumbnails on iPad (small scan is
      stretched there), Instruments memory pass against the extension ceiling
      on the iPad over cable.
   3. App icon: the developer is having one made externally (2026-09-22); the
@@ -254,8 +260,11 @@ Last updated 2026-09-23, polish pass.
   listens since recents went). Hold for printings is 0.7 s, fires
   while the finger is down, cancels the drag lift (which comes at about
   0.5 s) by toggling the interaction off for a run-loop turn, and is
-  disabled in the printings view. Moving before 0.7 s drags. Phone check of
-  the lift cancel pending.
+  disabled in the printings view. Moving before 0.7 s drags. On the phone
+  the hold only took effect once the finger came off (reported
+  2026-09-25): the lift's recognizer won at 0.5 s and failed ours, so the
+  hold recognizer now has a delegate that lets the two run simultaneously.
+  Phone check of that pending.
 - **The container app has no "try it" text field.** One existed for a few
   hours on 2026-09-23 (a `UITextView` that took image pastes); the developer
   removed it because people try the keyboard in a real chat anyway, and a

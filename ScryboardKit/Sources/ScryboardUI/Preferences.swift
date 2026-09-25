@@ -54,7 +54,7 @@ public enum CopyFormat: String, Sendable, Hashable, CaseIterable, Codable {
     public var title: String {
         switch self {
         case .image: "Image"
-        case .link: "Scryfall link"
+        case .link: "Link"
         case .text: "Text"
         }
     }

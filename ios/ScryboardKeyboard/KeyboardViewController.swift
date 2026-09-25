@@ -196,6 +196,7 @@ final class KeyboardViewController: UIInputViewController {
             }
         }
         resultsView.onScrollSettled = { [weak self] in self?.rememberPosition() }
+        resultsView.onRetry = { [weak self] in self?.retry() }
     }
 
     // MARK: - Height
@@ -336,6 +337,18 @@ final class KeyboardViewController: UIInputViewController {
         Task {
             await SavedResults.shared.clear()
             await pipeline.cancel()
+        }
+    }
+
+    /// The reload button under a failed request: the same request again.
+    private func retry() {
+        if let printings {
+            resultsView.show(.loading)
+            Task { await pipeline.searchExact(name: printings) }
+        } else if !query.text.trimmingCharacters(in: .whitespaces).isEmpty {
+            runSearch(query.text)
+        } else {
+            showEmptyState()
         }
     }
 
@@ -499,7 +512,13 @@ final class KeyboardViewController: UIInputViewController {
         case .empty(let query):
             resultsView.show(.message("No cards match “\(query)”."))
         case .failure(let error, _):
-            resultsView.show(.message(error.localizedDescription))
+            // A message from Scryfall itself (a bad query, say) is an answer;
+            // reloading would only ask again. Anything else may pass.
+            if case .scryfall = error {
+                resultsView.show(.message(error.localizedDescription))
+            } else {
+                resultsView.show(.failure(error.localizedDescription))
+            }
         }
     }
 }

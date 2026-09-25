@@ -11,10 +11,15 @@ final class ResultsView: UIView {
         case hint(String)
         case loading
         case message(String)
+        /// Something went wrong that trying again might fix: no connection,
+        /// a timeout. The message plus a small reload button.
+        case failure(String)
         case cards
     }
 
     var onSelect: ((Card) -> Void)?
+    /// The reload button under a failure message.
+    var onRetry: (() -> Void)?
     /// A held card. Tap copies; hold shows every printing.
     var onLongPress: ((Card) -> Void)?
     /// Set by the owner while the grid shows every printing of one card, so
@@ -60,6 +65,8 @@ final class ResultsView: UIView {
     /// before the first layout, when scrolling would have nowhere to go.
     private var pendingScroll: Int?
     private let statusLabel = UILabel()
+    private let retryButton = UIButton(configuration: .gray())
+    private let statusStack = UIStackView()
     private let spinner = UIActivityIndicatorView(style: .medium)
 
     /// Card scans are 5:7. As many columns as the chosen card size allows:
@@ -109,6 +116,11 @@ final class ResultsView: UIView {
         // hold that was going to become a drag has already done so.
         let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
         hold.minimumPressDuration = 0.7
+        // Runs alongside the drag interaction's own long press (see the
+        // delegate). Left to the default, the lift's recognizer wins at half
+        // a second and this one is failed, so on the phone the hold only
+        // took effect once the finger came off (reported 2026-09-25).
+        hold.delegate = self
         collection.addGestureRecognizer(hold)
 
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
@@ -118,8 +130,27 @@ final class ResultsView: UIView {
         statusLabel.textColor = .secondaryLabel
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(statusLabel)
+
+        var retry = retryButton.configuration ?? .gray()
+        retry.cornerStyle = .capsule
+        retry.buttonSize = .small
+        retry.image = UIImage(systemName: "arrow.clockwise")
+        retry.imagePadding = 4
+        retry.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        retry.attributedTitle = AttributedString("Reload", attributes: AttributeContainer([
+            .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
+        ]))
+        retryButton.configuration = retry
+        retryButton.accessibilityLabel = "Reload"
+        retryButton.addAction(UIAction { [weak self] _ in self?.onRetry?() }, for: .touchUpInside)
+
+        statusStack.axis = .vertical
+        statusStack.alignment = .center
+        statusStack.spacing = 10
+        statusStack.addArrangedSubview(statusLabel)
+        statusStack.addArrangedSubview(retryButton)
+        statusStack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(statusStack)
 
         spinner.hidesWhenStopped = true
         spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -130,10 +161,10 @@ final class ResultsView: UIView {
             collection.bottomAnchor.constraint(equalTo: bottomAnchor),
             collection.leadingAnchor.constraint(equalTo: leadingAnchor),
             collection.trailingAnchor.constraint(equalTo: trailingAnchor),
-            statusLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            statusLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            statusLabel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 24),
-            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -24),
+            statusStack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            statusStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            statusStack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 24),
+            statusStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -24),
             spinner.centerXAnchor.constraint(equalTo: centerXAnchor),
             spinner.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
@@ -181,20 +212,21 @@ final class ResultsView: UIView {
 
     func show(_ status: Status) {
         switch status {
-        case .hint(let text), .message(let text):
+        case .hint(let text), .message(let text), .failure(let text):
             cards = []
             collection.reloadData()
             collection.isHidden = true
             statusLabel.text = text
-            statusLabel.isHidden = false
+            statusStack.isHidden = false
+            if case .failure = status { retryButton.isHidden = false } else { retryButton.isHidden = true }
             spinner.stopAnimating()
         case .loading:
             collection.isHidden = true
-            statusLabel.isHidden = true
+            statusStack.isHidden = true
             spinner.startAnimating()
         case .cards:
             collection.isHidden = false
-            statusLabel.isHidden = true
+            statusStack.isHidden = true
             spinner.stopAnimating()
         }
     }
@@ -223,6 +255,15 @@ final class ResultsView: UIView {
         let start = cards.count
         cards.append(contentsOf: more)
         collection.insertItems(at: (start..<cards.count).map { IndexPath(item: $0, section: 0) })
+    }
+}
+
+extension ResultsView: UIGestureRecognizerDelegate {
+    /// The hold and the drag lift both watch the same still finger; neither
+    /// may fail the other. The hold checks `dragging` itself, and a finger
+    /// that moves fails the hold on its own.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        true
     }
 }
 
