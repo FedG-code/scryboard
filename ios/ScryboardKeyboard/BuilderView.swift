@@ -6,6 +6,9 @@ import ScryboardKit
 /// becomes. Add hands the clause to the controller, which appends it to the
 /// search bar without searching; Search runs whatever the bar holds.
 ///
+/// A floating Back capsule, the same one the grid shows over printings,
+/// undoes a step; on the first step there is nothing to undo and it is gone.
+///
 /// Every decision about words and syntax is `QueryClause` in the Kit. This
 /// view only draws buttons and keeps track of which step is showing.
 final class BuilderView: UIView {
@@ -17,7 +20,7 @@ final class BuilderView: UIView {
         didSet { searchButton.isEnabled = canSearch }
     }
 
-    private enum Step: Int, CaseIterable {
+    private enum Step {
         case filter, comparison, value
     }
 
@@ -29,8 +32,8 @@ final class BuilderView: UIView {
 
     private let sentenceLabel = UILabel()
     private let syntaxLabel = UILabel()
-    private let crumbs = Step.allCases.map { _ in ChipButton(style: .function) }
     private let pane = FlowPane()
+    private let backButton = BackCapsuleButton()
     private let notButton = ChipButton(style: .function)
     private let addButton = ChipButton(style: .plain)
     private let searchButton = ChipButton(style: .prominent)
@@ -60,15 +63,6 @@ final class BuilderView: UIView {
         // The syntax line keeps its height when empty so nothing jumps.
         syntaxLabel.heightAnchor.constraint(equalToConstant: 15).isActive = true
 
-        let crumbRow = UIStackView(arrangedSubviews: crumbs)
-        crumbRow.spacing = 4
-        crumbRow.distribution = .fillEqually
-        crumbRow.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        for (index, crumb) in crumbs.enumerated() {
-            crumb.font = .systemFont(ofSize: 12, weight: .medium)
-            crumb.addAction(UIAction { [weak self] _ in self?.show(Step(rawValue: index)!) }, for: .touchUpInside)
-        }
-
         notButton.title = "Not"
         notButton.accessibilityLabel = "Not: exclude these cards"
         notButton.addAction(UIAction { [weak self] _ in self?.toggleNegated() }, for: .touchUpInside)
@@ -86,7 +80,7 @@ final class BuilderView: UIView {
         notButton.widthAnchor.constraint(equalToConstant: 64).isActive = true
         addButton.widthAnchor.constraint(equalTo: searchButton.widthAnchor, multiplier: 1.4).isActive = true
 
-        let column = UIStackView(arrangedSubviews: [sentence, crumbRow, pane, actions])
+        let column = UIStackView(arrangedSubviews: [sentence, pane, actions])
         column.axis = .vertical
         column.spacing = 6
         column.isLayoutMarginsRelativeArrangement = true
@@ -98,6 +92,14 @@ final class BuilderView: UIView {
             column.leadingAnchor.constraint(equalTo: leadingAnchor),
             column.trailingAnchor.constraint(equalTo: trailingAnchor),
             column.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+
+        backButton.accessibilityLabel = "Back to the previous step"
+        backButton.addAction(UIAction { [weak self] _ in self?.goBack() }, for: .touchUpInside)
+        addSubview(backButton)
+        NSLayoutConstraint.activate([
+            backButton.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -4),
+            backButton.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -4),
         ])
     }
 
@@ -142,14 +144,22 @@ final class BuilderView: UIView {
         render()
     }
 
-    private func show(_ step: Step) {
-        guard step == .filter || clause != nil else { return }
-        self.step = step
+    /// One step back: value to operator, or to the filter when the filter
+    /// has no operator step. The choices made so far are kept.
+    private func goBack() {
+        switch step {
+        case .filter:
+            return
+        case .comparison:
+            step = .filter
+        case .value:
+            step = clause?.filter.hasOperatorStep == true ? .comparison : .filter
+        }
         render()
     }
 
     private func add() {
-        guard let clause, clause.isComplete else { return }
+        guard let clause else { return }
         onAdd?(clause)
         self.clause = nil
         negated = false
@@ -169,36 +179,16 @@ final class BuilderView: UIView {
             sentenceLabel.textColor = .secondaryLabel
             syntaxLabel.text = nil
         }
-        addButton.isEnabled = clause?.isComplete ?? false
+        // Add works from the moment a filter is picked; without a value it
+        // writes the prefix and operator and opens the keyboard for the rest.
+        addButton.isEnabled = clause != nil
         addButton.title = clause?.handsOffToKeyboard == true ? "Add and type" : "Add"
         notButton.isSelected = negated
 
-        renderCrumbs()
+        backButton.isHidden = step == .filter
+        // Room to scroll the last row out from under the capsule.
+        pane.contentInset.bottom = step == .filter ? 0 : 48
         renderPane()
-    }
-
-    private func renderCrumbs() {
-        let filter = clause?.filter
-        let titles = ["Filter", "Operator", "Value"]
-        let done: [String?] = [
-            filter?.title,
-            clause.map(\.comparison.word),
-            clause.flatMap { clause -> String? in
-                switch clause.value {
-                case .colours(let set) where !set.isEmpty: set.description
-                case .choice(let choice): choice.label
-                default: nil
-                }
-            },
-        ]
-        let shown = [true, filter?.hasOperatorStep ?? true, filter?.hasValueStep ?? true]
-        for (index, crumb) in crumbs.enumerated() {
-            let current = index == step.rawValue
-            crumb.isHidden = !shown[index]
-            crumb.title = (current ? nil : done[index]) ?? titles[index]
-            crumb.isSelected = current
-            crumb.accessibilityLabel = "\(titles[index]) step" + (done[index].map { ", \($0)" } ?? "")
-        }
     }
 
     private func renderPane() {

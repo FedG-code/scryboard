@@ -135,7 +135,7 @@ public struct KeyboardLayout: Sendable, Hashable {
             // The query-syntax row, above the letters like the number row on
             // an iPad: every operator a typical search needs without leaving
             // the plane. `:` opens every filter, so it sits in the middle,
-            // half a key wider, with `<` and `>` either side; `"` quotes,
+            // with `<` and `>` either side; `"` quotes,
             // `!` is an exact name, `-` negates, `()` group, `/` splits
             // faces. The row is the width of the letter row below it.
             syntaxRow,
@@ -179,15 +179,11 @@ public struct KeyboardLayout: Sendable, Hashable {
 
     // MARK: - Key construction
 
+    /// Ten keys the width of a letter key, so the row lines up with the
+    /// letters below. The colon was half a key wider until 2026-09-25; the
+    /// developer wanted it the same as the rest.
     private static var syntaxRow: KeyboardRow {
-        let colonUnits = 1.5
-        let others = "\"!-(<" + ">)=/"
-        let otherUnits = (10 - colonUnits) / Double(others.count)
-        return KeyboardRow(
-            characterKeys("\"!-(<", shift: .off, widthUnits: otherUnits)
-                + characterKeys(":", shift: .off, widthUnits: colonUnits)
-                + characterKeys(">)=/", shift: .off, widthUnits: otherUnits)
-        )
+        KeyboardRow(characterKeys("\"!-(<:>)=/", shift: .off))
     }
 
     private static func characterKeys(

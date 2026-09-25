@@ -21,12 +21,11 @@ struct KeyboardLayoutTests {
     func syntaxRow() {
         let row = KeyboardLayout.standard(plane: .letters, shift: .off).rows[0]
         #expect(row.keys.map(\.label).joined() == "\"!-(<:>)=/")
-        // The colon is the key every filter needs: centred and wider, with
+        // The colon is the key every filter needs: centred, with
         // the comparison signs either side of it.
         let colon = row.keys[5]
         #expect(colon.action == .character(":"))
-        #expect(colon.widthUnits == 1.5)
-        #expect(row.keys.filter { $0.id != colon.id }.allSatisfy { $0.widthUnits < 1 })
+        #expect(row.keys.allSatisfy { $0.widthUnits == 1 }, "the same width as a letter key")
         #expect(abs(row.widthUnits - 10) < 0.0001, "the syntax row is as wide as the letter row")
     }
 

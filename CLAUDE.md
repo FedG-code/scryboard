@@ -16,10 +16,16 @@ something it can show, not what it is.
   power, toughness, keyword, card text), then an **operator in words** ("fits
   within", "at least", "or better"), then a **value** (W U B R G toggles,
   digits 0–9, or a list), with a plain-language sentence and the raw syntax
-  above the buttons. Crumbs at the top say Filter / Operator / Value; the
-  Operator crumb is absent when the filter has one operator. **Add** appends
-  the clause to the pill after a space and sends nothing; **Search** runs the
-  pill; **Not** prefixes `-`. Card text and "Other…" under Type end at the
+  above the buttons. The way back a step is the same floating **Back**
+  capsule the grid shows over printings, bottom-right over the pane, absent
+  on the first step (the Filter / Operator / Value crumbs it replaced on
+  2026-09-25 were disliked); the pane gets bottom inset so the last row can
+  scroll out from under it. **Add** appends the clause to the pill after a
+  space and sends nothing, and works at every step once a filter is picked
+  (since 2026-09-25): without a value it appends the prefix and operator
+  (`id<=`, `mv>=`) and opens the QWERTY with the caret at the end, so the
+  value can be typed instead of picked; **Search** runs the pill; **Not**
+  prefixes `-`. Card text and "Other…" under Type end at the
   operator and open the QWERTY with the caret where the words go (`o:""`,
   caret between the quotes). Colour and identity never emit a bare colon:
   on Scryfall `c:` means `>=` and `id:` means `<=` (checked against the API),
@@ -35,8 +41,10 @@ something it can show, not what it is.
   in-extension QWERTY (`KeyboardLayout`). The letters plane carries a **syntax
   row** above the letters, `" ! - ( < : > ) = /`, like the iPad number row, so
   a normal query never leaves the plane; the colon is the key every filter
-  needs, so it sits in the middle, half a key wider (2026-09-23), and the row
-  stays as wide as the letter row. The space bar is unlabelled and the
+  needs, so it sits in the middle. Every key in the row is letter-key wide
+  (the colon was half a key wider from 2026-09-23 to 2026-09-25; the
+  developer wanted it the same as the rest), so the row lines up with the
+  letters. The space bar is unlabelled and the
   commit key is a return symbol, as on the system keyboard. A **builder key**
   (sliders symbol) sits between `123` and the globe on every plane and
   returns to the builder with the query kept; the space bar paid for it. In
@@ -178,7 +186,8 @@ Last updated 2026-09-23, polish pass.
   the 220 pt landscape height (the pane gets little room and scrolls), and
   whether the sliders key on the QWERTY reads as "back to the builder".
   Rejected in the design round: clause tokens under the pill, tinted colour
-  letters, an `is:` filter, a pill icon or a swipe as the way back. Numbers
+  letters, an `is:` filter, a pill icon or a swipe as the way back; the step
+  crumbs went too (2026-09-25). Numbers
   stop at 9 on purpose. A clause added but not yet searched is not saved
   across a keyboard rebuild; only committed searches are.
 - **Next, after the polish list:**
@@ -269,6 +278,10 @@ Last updated 2026-09-23, polish pass.
 - **Image loading and the thumbnail cache live in a second package target,
   `ScryboardUI`**, which may import ImageIO and UIKit and is shared by both app
   targets. `ScryboardKit` stays Foundation-only for the Android port.
+- **No drop-down menus in the container app's settings.** The iOS 26 menu
+  picker's press animation has no switch and the developer dislikes it
+  (2026-09-25), so sort order is a pushed list (`.navigationLink`) and the
+  short choices (direction, card size, copy format) are segmented controls.
 - **Settings cross over through an App Group**, `group.com.fedg.scryboard`,
   declared in `ios/project.yml` for both targets. XcodeGen writes the
   `.entitlements` files, which are gitignored like the project; automatic

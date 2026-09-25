@@ -6,8 +6,8 @@ import ScryboardUI
 /// The keyboard. Opens on the query builder under the search-bar pill;
 /// browsing mode shows results in a grid with a slim toolbar holding a globe
 /// where the system draws none; typing mode gives the room to the QWERTY when
-/// the bar is tapped. The return key or the builder's Search shows results,
-/// the pill's clear button and the QWERTY's builder key come back here.
+/// the bar is tapped. The return key or the builder's Search shows results;
+/// the QWERTY's builder key comes back here.
 final class KeyboardViewController: UIInputViewController {
     private enum Mode {
         /// The query builder. What an empty search bar shows.
@@ -21,7 +21,7 @@ final class KeyboardViewController: UIInputViewController {
     private let resultsView = ResultsView()
     private let browseToolbar = BrowseToolbarView()
     /// Floats over the grid while printings are shown. The one way back.
-    private let backButton = UIButton(configuration: .filled())
+    private let backButton = BackCapsuleButton()
     private let keyboardView = KeyboardView()
     private let fullAccessNotice = UILabel()
     private let toast = ToastView()
@@ -127,25 +127,7 @@ final class KeyboardViewController: UIInputViewController {
         height.priority = UILayoutPriority(999)
         heightConstraint = height
 
-        var back = backButton.configuration ?? .filled()
-        back.cornerStyle = .capsule
-        back.image = UIImage(systemName: "chevron.left")
-        back.imagePadding = 4
-        back.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        back.attributedTitle = AttributedString("Back", attributes: AttributeContainer([
-            .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
-        ]))
-        back.baseBackgroundColor = .systemFill
-        back.baseForegroundColor = .label
-        back.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 14)
-        backButton.configuration = back
-        backButton.layer.shadowColor = UIColor.black.cgColor
-        backButton.layer.shadowOpacity = 0.35
-        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-        backButton.layer.shadowRadius = 5
         backButton.accessibilityLabel = "Back to search results"
-        backButton.isHidden = true
-        backButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(backButton)
 
         toast.translatesAutoresizingMaskIntoConstraints = false
@@ -335,15 +317,22 @@ final class KeyboardViewController: UIInputViewController {
         Task { await pipeline.search(query, order: order, direction: direction) }
     }
 
-    /// The pill's clear button: empty bar, back to the builder.
+    /// The pill's clear button empties the bar and forgets the search; it
+    /// never changes what is under the bar. The QWERTY stays up while typing
+    /// (the sliders key is the way to the builder), the builder stays while
+    /// building, and from the grid it opens the QWERTY: an empty bar over
+    /// results means a new search is coming.
     private func clearQuery() {
         query = QueryBuffer()
         queryChanged()
         printings = nil
         gridBeforePrintings = nil
         pager = nil
+        resultsView.show([])
         SavedSearch.clear()
-        apply(mode: .building, animated: true)
+        if mode == .browsing {
+            apply(mode: .typing, animated: true)
+        }
         Task {
             await SavedResults.shared.clear()
             await pipeline.cancel()

@@ -17,12 +17,16 @@ struct ContentView: View {
                     Label("Then open Scryboard in that list and turn on Allow Full Access so it can reach Scryfall.", systemImage: "network")
                 }
                 Section {
+                    // Pushed lists and segments, not drop-down menus: the
+                    // menu picker's press animation on iOS 26 has no switch.
                     Picker("Sort results by", selection: $preferences.order) {
                         ForEach(SearchOrder.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
+                    .pickerStyle(.navigationLink)
                     Picker("Direction", selection: $preferences.direction) {
                         ForEach(SortDirection.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
+                    .pickerStyle(.segmented)
                     Picker("Card size", selection: $preferences.cardSize) {
                         ForEach(CardSize.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
@@ -34,6 +38,7 @@ struct ContentView: View {
                     Picker("Tapping a card copies", selection: $preferences.copyFormat) {
                         ForEach(CopyFormat.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
+                    .pickerStyle(.segmented)
                 } header: {
                     Text("Copying")
                 } footer: {

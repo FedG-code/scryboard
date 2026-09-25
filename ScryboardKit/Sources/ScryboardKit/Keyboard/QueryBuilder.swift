@@ -260,7 +260,8 @@ public struct QueryClause: Sendable, Hashable {
         self.negated = negated
     }
 
-    /// Whether Add has something to add.
+    /// Whether the value is in. Add works without one (since 2026-09-25):
+    /// the clause then ends at the operator and the keyboard takes the value.
     public var isComplete: Bool {
         switch value {
         case nil: false
@@ -269,8 +270,9 @@ public struct QueryClause: Sendable, Hashable {
         }
     }
 
-    /// The clause ends at the operator and the keyboard should open.
-    public var handsOffToKeyboard: Bool { value == .typed }
+    /// The clause ends at the operator and the keyboard should open: "Other…",
+    /// a typed filter, or a value the user chose to type instead of picking.
+    public var handsOffToKeyboard: Bool { value == .typed || !isComplete }
 
     /// The operator actually written: a choice such as Colourless overrides
     /// whichever was picked.

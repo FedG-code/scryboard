@@ -113,6 +113,25 @@ struct QueryBuilderTests {
         #expect(QueryClause(filter: .rarity).sentence == "Rarity is …")
     }
 
+    /// Add is offered at every step once a filter is picked. Without a value
+    /// the clause is the prefix and operator, and the keyboard takes the rest.
+    @Test("An incomplete clause adds its prefix and hands the value to the keyboard")
+    func incompleteHandsOff() {
+        let identity = QueryClause(filter: .identity, comparison: QueryOperator("includes", ">="))
+        #expect(identity.handsOffToKeyboard)
+        #expect(identity.syntax == "id>=")
+        #expect(identity.caretFromEnd == 0)
+        #expect(QueryClause(filter: .identity, value: .colours([])).syntax == "id<=")
+        #expect(QueryClause(filter: .manaValue).syntax == "mv=")
+        #expect(QueryClause(filter: .rarity, negated: true).syntax == "-r:")
+        #expect(!QueryClause(filter: .rarity, value: .choice(QueryFilter.rarity.choices[0])).handsOffToKeyboard)
+
+        var buffer = QueryBuffer("t:creature")
+        buffer.appendTerm(identity.syntax, caretFromEnd: identity.caretFromEnd)
+        buffer.insert("ub")
+        #expect(buffer.text == "t:creature id>=ub")
+    }
+
     @Test("Only filters with several operators show the operator step")
     func operatorStep() {
         #expect(QueryFilter.identity.hasOperatorStep)
