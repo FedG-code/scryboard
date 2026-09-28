@@ -257,14 +257,20 @@ Last updated 2026-09-23, polish pass.
   chooses, and WhatsApp takes the link in its text box and the image in the
   chat. Link and Text settings drag one thing. A refused drop shows
   nothing (`ResultsView.onDragEnded` still reports the outcome; nothing
-  listens since recents went). Hold for printings is 0.7 s, fires
-  while the finger is down, cancels the drag lift (which comes at about
-  0.5 s) by toggling the interaction off for a run-loop turn, and is
-  disabled in the printings view. Moving before 0.7 s drags. On the phone
-  the hold only took effect once the finger came off (reported
-  2026-09-25): the lift's recognizer won at 0.5 s and failed ours, so the
-  hold recognizer now has a delegate that lets the two run simultaneously.
-  Phone check of that pending.
+  listens since recents went). **Hold for printings rides on the drag
+  lift, not on a long-press recognizer** (since 2026-09-28). UIKit delays
+  every long press that shares a view with a `UIDragInteraction` until the
+  touch ends when the width is compact (WWDC 2017 session 219, "Modern User
+  Interaction on iOS"), so a recognizer worked on the iPad and never fired
+  on the iPhone until the finger came off; a simultaneous-recognition
+  delegate changed nothing. The lift is not delayed: `itemsForBeginning`
+  arrives as the card rises, finger down, and `sessionWillBegin` only once
+  the finger moves. So the lift arms a 0.25 s timer; moving cancels it and
+  the drag proceeds, staying still fires it, which cancels the lift (the
+  interaction is toggled off for a run-loop turn) and opens the printings.
+  Total is the system lift (about 0.5 s) plus 0.25 s. Disabled in the
+  printings view; the release of the same touch is ignored as a tap for a
+  second. Phone check pending.
 - **The container app has no "try it" text field.** One existed for a few
   hours on 2026-09-23 (a `UITextView` that took image pastes); the developer
   removed it because people try the keyboard in a real chat anyway, and a
@@ -355,6 +361,11 @@ xcodebuild -exportArchive -archivePath /tmp/Scryboard.xcarchive -exportOptionsPl
   -exportPath /tmp/export -allowProvisioningUpdates
 ```
 
+If `-exportArchive` fails with "Failed to Use Accounts" ("Failed to find an
+account with App Store Connect access for team" in the distribution log)
+while the account still shows as signed in, Xcode's session token has
+lapsed: open Xcode › Settings › Apple Accounts and click into the team, which
+refreshes it, then re-run the export (learned 2026-09-26; no sign-in needed).
 Apple's "build processed" email is unreliable; check the TestFlight tab in App
 Store Connect instead. **Friends test as internal testers**: on 2026-09-22 the
 developer invited them to the App Store Connect team with the Developer role

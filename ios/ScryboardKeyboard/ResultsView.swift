@@ -59,8 +59,14 @@ final class ResultsView: UIView {
 
     private let collection: UICollectionView
     private lazy var dragInteraction = UIDragInteraction(delegate: self)
-    /// A card is moving. The hold recognizer stands down meanwhile.
+    /// A card is moving. The hold stands down meanwhile.
     private var dragging = false
+    /// Opens the lifted card's printings unless the finger moves first.
+    /// Armed when the drag lift raises a card; see `armHold(for:)`.
+    private var pendingHold: DispatchWorkItem?
+    /// When printings last opened from a hold, so the release of that same
+    /// touch is not taken for a tap.
+    private var lastHold = Date.distantPast
     /// Where to scroll once the grid has a size. Set by `show(_:scrollTo:)`
     /// before the first layout, when scrolling would have nowhere to go.
     private var pendingScroll: Int?
@@ -112,17 +118,6 @@ final class ResultsView: UIView {
         collection.translatesAutoresizingMaskIntoConstraints = false
         addSubview(collection)
 
-        // Longer than the system's drag lift (about half a second), so a
-        // hold that was going to become a drag has already done so.
-        let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
-        hold.minimumPressDuration = 0.7
-        // Runs alongside the drag interaction's own long press (see the
-        // delegate). Left to the default, the lift's recognizer wins at half
-        // a second and this one is failed, so on the phone the hold only
-        // took effect once the finger came off (reported 2026-09-25).
-        hold.delegate = self
-        collection.addGestureRecognizer(hold)
-
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
         collection.addGestureRecognizer(pinch)
 
@@ -172,17 +167,30 @@ final class ResultsView: UIView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Fires once the hold has outlasted the drag lift with no drag begun.
-    /// The system lifts the card at about half a second; a hold that gets
-    /// this far was not going to drag, so the lift is cancelled and the card
-    /// settles back as the printings come in. Does nothing while the grid
-    /// already shows printings: there is nothing further to expand.
-    @objc private func held(_ gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began, !dragging, !showsPrintings,
-              let indexPath = collection.indexPathForItem(at: gesture.location(in: collection))
-        else { return }
-        cancelLift()
-        onLongPress?(cards[indexPath.item])
+    /// Hold for printings rides on the drag lift. A long-press recognizer
+    /// cannot do it on the phone: UIKit delays every long press that shares a
+    /// view with a `UIDragInteraction` until the touch ends in a compact
+    /// width (WWDC 2017 session 219), which is why the recognizer worked on
+    /// the iPad and not the iPhone. The lift itself is not delayed: UIKit asks
+    /// for the drag items the moment the card rises, finger still down, and
+    /// says separately when the finger moves. So the lift arms a short timer;
+    /// moving cancels it and the drag goes on, staying put fires it: the lift
+    /// is cancelled and the printings come in. A finger lifted inside the
+    /// window still gets its printings, as a long press and release would.
+    /// Does nothing while the grid already shows printings.
+    private func armHold(for card: Card) {
+        pendingHold?.cancel()
+        pendingHold = nil
+        guard !showsPrintings else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.dragging else { return }
+            self.pendingHold = nil
+            self.cancelLift()
+            self.lastHold = Date()
+            self.onLongPress?(card)
+        }
+        pendingHold = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 
     /// Disabling the interaction tears its recognizers down, which ends a
@@ -258,15 +266,6 @@ final class ResultsView: UIView {
     }
 }
 
-extension ResultsView: UIGestureRecognizerDelegate {
-    /// The hold and the drag lift both watch the same still finger; neither
-    /// may fail the other. The hold checks `dragging` itself, and a finger
-    /// that moves fails the hold on its own.
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        true
-    }
-}
-
 extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         cards.count
@@ -283,6 +282,8 @@ extension ResultsView: UICollectionViewDataSource, UICollectionViewDelegate {
     }
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        // The release of the touch that just opened printings is not a tap.
+        guard Date().timeIntervalSince(lastHold) > 1 else { return }
         onSelect?(cards[indexPath.item])
     }
 
@@ -304,6 +305,8 @@ extension ResultsView: UIDragInteractionDelegate {
     func dragInteraction(_ interaction: UIDragInteraction, itemsForBeginning session: UIDragSession) -> [UIDragItem] {
         guard let indexPath = collection.indexPathForItem(at: session.location(in: collection)) else { return [] }
         let card = cards[indexPath.item]
+        // The card is rising under a still finger: start the hold clock.
+        armHold(for: card)
         let provider = NSItemProvider()
         provider.suggestedName = card.name
         switch copyFormat {
@@ -347,7 +350,10 @@ extension ResultsView: UIDragInteractionDelegate {
         return UITargetedDragPreview(view: cell, parameters: parameters)
     }
 
+    /// The finger moved: this is a drag, not a hold.
     func dragInteraction(_ interaction: UIDragInteraction, sessionWillBegin session: UIDragSession) {
+        pendingHold?.cancel()
+        pendingHold = nil
         dragging = true
     }
 
