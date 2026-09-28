@@ -500,22 +500,30 @@ Extension facts to design around:
    Twice in three days (2026-09-26, 2026-09-28) `-exportArchive` failed with
    "Failed to Use Accounts" although Xcode › Settings showed the account
    signed in with the team; clicking into the team in that pane refreshed
-   the token and the upload then went through at once. The developer's
-   theory (2026-09-28): the Mac mini locks or sleeps between sessions and
-   Xcode's session, or the keychain item behind it, does not survive that.
-   Flesh the process out so an upload never needs a hand on the GUI:
+   the token and the upload then went through at once. Confirmed
+   2026-09-28: it is the **lock screen**. The Mac mini never sleeps (a
+   `caffeinate` holds it awake; `pmset -g` shows sleep 0), the login
+   keychain has no timeout, Xcode was running, but `ioreg -n Root -d1 -a`
+   showed `CGSSessionScreenIsLocked` true since before the failed upload,
+   and the upload that worked on the 26th ran while the developer sat at
+   the unlocked Mac. Apple ID authentication needs an unlocked user
+   session, so clicking into the team was incidental. Uploads started
+   remotely (the developer away, Claude on the Mac) will fail until the
+   screen is unlocked, which nobody can do from the command line.
+   Flesh the process out so an upload never needs an unlocked screen:
    (1) the proper fix is an App Store Connect API key (Users and Access ›
    Integrations › Team Keys, role App Manager or Developer), the `.p8`
    kept outside the repo like the other signing material, passed to
    `xcodebuild -exportArchive` with `-authenticationKeyPath`,
    `-authenticationKeyID` and `-authenticationKeyIssuerID`; this bypasses
    Xcode's account session entirely and is what CI would use anyway;
-   (2) failing that, work out what actually lapses (does the token survive
-   a lock but not a sleep? is it the login keychain locking?) and whether
-   the energy or lock settings on the Mac mini can be changed; (3) until
-   then, before every upload, open Xcode › Settings › Apple Accounts and
-   click into the team, then export. `ios/ExportOptions.plist` needs no
-   change for the key.
+   (2) failing that, a longer screen-lock delay on the Mac mini, which
+   only narrows the window; (3) until then, uploads happen with the
+   developer at the unlocked Mac; a retry then works with no Xcode
+   fiddling. `ios/ExportOptions.plist` needs no change for the key. No
+   iCloud Drive is signed in on the Mac, so the key file cannot be dropped
+   in from the phone; generating and placing it is a task for a session
+   at the machine.
 
 When an item is done, delete it from this list rather than marking it; the list is
 meant to empty out.
