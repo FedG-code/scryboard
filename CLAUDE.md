@@ -366,6 +366,8 @@ account with App Store Connect access for team" in the distribution log)
 while the account still shows as signed in, Xcode's session token has
 lapsed: open Xcode › Settings › Apple Accounts and click into the team, which
 refreshes it, then re-run the export (learned 2026-09-26; no sign-in needed).
+It recurs (2026-09-26 and again 2026-09-28); see the open item on making
+uploads independent of Xcode's session.
 Apple's "build processed" email is unreliable; check the TestFlight tab in App
 Store Connect instead. **Friends test as internal testers**: on 2026-09-22 the
 developer invited them to the App Store Connect team with the Developer role
@@ -493,6 +495,27 @@ Extension facts to design around:
    the tester's app access under Users and Access. The "Unable to install"
    error itself is usually a half-installed leftover copy, a signing clash
    with a non-TestFlight install, or a bad download; delete, restart, retry.
+
+4. **Uploads depend on Xcode's Apple Account session, which keeps lapsing.**
+   Twice in three days (2026-09-26, 2026-09-28) `-exportArchive` failed with
+   "Failed to Use Accounts" although Xcode › Settings showed the account
+   signed in with the team; clicking into the team in that pane refreshed
+   the token and the upload then went through at once. The developer's
+   theory (2026-09-28): the Mac mini locks or sleeps between sessions and
+   Xcode's session, or the keychain item behind it, does not survive that.
+   Flesh the process out so an upload never needs a hand on the GUI:
+   (1) the proper fix is an App Store Connect API key (Users and Access ›
+   Integrations › Team Keys, role App Manager or Developer), the `.p8`
+   kept outside the repo like the other signing material, passed to
+   `xcodebuild -exportArchive` with `-authenticationKeyPath`,
+   `-authenticationKeyID` and `-authenticationKeyIssuerID`; this bypasses
+   Xcode's account session entirely and is what CI would use anyway;
+   (2) failing that, work out what actually lapses (does the token survive
+   a lock but not a sleep? is it the login keychain locking?) and whether
+   the energy or lock settings on the Mac mini can be changed; (3) until
+   then, before every upload, open Xcode › Settings › Apple Accounts and
+   click into the team, then export. `ios/ExportOptions.plist` needs no
+   change for the key.
 
 When an item is done, delete it from this list rather than marking it; the list is
 meant to empty out.
