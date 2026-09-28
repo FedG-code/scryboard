@@ -68,3 +68,4 @@ ios/Local.xcconfig
 
 # Local screenshots, never pushed
 screenshots/
+ios/Local.upload.env

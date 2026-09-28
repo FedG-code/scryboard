@@ -404,25 +404,27 @@ First upload went out 2026-09-21 as 1.0 (1); the polish-pass build followed on 2
 `ios/Local.xcconfig` (gitignored); if `-exportArchive` ever asks for a team,
 add a `teamID` key to a *local copy* of `ExportOptions.plist`, never to the
 committed one. The App Store Connect record for `com.fedg.scryboard` exists.
-Uploads run from the command line with Xcode's signed-in Apple ID; no API key
-is involved yet. Nothing here publishes: builds land in TestFlight only, and the
-App Store release is a separate, manual submission.
+Uploads run from the command line through `ios/upload.sh` (since
+2026-09-28) with an App Store Connect API key, so they need neither Xcode's
+signed-in account nor an unlocked screen; the Mac must be awake, which
+`caffeinate` sees to. The key is a Team Key with the **Admin** role (the
+export signs with a cloud-managed distribution certificate, and an App
+Manager key fails with "Cloud signing permission error"); its `.p8` lives in
+`~/.appstoreconnect/private_keys/` and its Key ID and Issuer ID in the
+gitignored `ios/Local.upload.env` (see `Local.upload.env.example`). Nothing
+here publishes: builds land in TestFlight only, and the App Store release is
+a separate, manual submission.
 
 ```sh
-cd ios
-xcodebuild archive -project Scryboard.xcodeproj -scheme Scryboard -configuration Release \
-  -destination 'generic/platform=iOS' -archivePath /tmp/Scryboard.xcarchive -allowProvisioningUpdates
-xcodebuild -exportArchive -archivePath /tmp/Scryboard.xcarchive -exportOptionsPlist ExportOptions.plist \
-  -exportPath /tmp/export -allowProvisioningUpdates
+./ios/upload.sh    # xcodegen, archive, export + upload; logs in a fresh /tmp/scryboard-upload-* folder
 ```
 
-If `-exportArchive` fails with "Failed to Use Accounts" ("Failed to find an
-account with App Store Connect access for team" in the distribution log)
-while the account still shows as signed in, Xcode's session token has
-lapsed: open Xcode › Settings › Apple Accounts and click into the team, which
-refreshes it, then re-run the export (learned 2026-09-26; no sign-in needed).
-It recurs (2026-09-26 and again 2026-09-28); see the open item on making
-uploads independent of Xcode's session.
+Before the key, uploads used Xcode's Apple ID session and failed with
+"Failed to Use Accounts" whenever the screen was locked (2026-09-26,
+2026-09-28); Apple ID authentication needs an unlocked user session. If the
+script ever has to be bypassed, the manual `xcodebuild archive` and
+`-exportArchive` calls inside it work with Xcode's account at the unlocked
+Mac.
 Apple's "build processed" email is unreliable; check the TestFlight tab in App
 Store Connect instead. **Friends test as internal testers**: on 2026-09-22 the
 developer invited them to the App Store Connect team with the Developer role
@@ -550,35 +552,6 @@ Extension facts to design around:
    the tester's app access under Users and Access. The "Unable to install"
    error itself is usually a half-installed leftover copy, a signing clash
    with a non-TestFlight install, or a bad download; delete, restart, retry.
-
-4. **Uploads depend on Xcode's Apple Account session, which keeps lapsing.**
-   Twice in three days (2026-09-26, 2026-09-28) `-exportArchive` failed with
-   "Failed to Use Accounts" although Xcode › Settings showed the account
-   signed in with the team; clicking into the team in that pane refreshed
-   the token and the upload then went through at once. Confirmed
-   2026-09-28: it is the **lock screen**. The Mac mini never sleeps (a
-   `caffeinate` holds it awake; `pmset -g` shows sleep 0), the login
-   keychain has no timeout, Xcode was running, but `ioreg -n Root -d1 -a`
-   showed `CGSSessionScreenIsLocked` true since before the failed upload,
-   and the upload that worked on the 26th ran while the developer sat at
-   the unlocked Mac. Apple ID authentication needs an unlocked user
-   session, so clicking into the team was incidental. Uploads started
-   remotely (the developer away, Claude on the Mac) will fail until the
-   screen is unlocked, which nobody can do from the command line.
-   Flesh the process out so an upload never needs an unlocked screen:
-   (1) the proper fix is an App Store Connect API key (Users and Access ›
-   Integrations › Team Keys, role App Manager or Developer), the `.p8`
-   kept outside the repo like the other signing material, passed to
-   `xcodebuild -exportArchive` with `-authenticationKeyPath`,
-   `-authenticationKeyID` and `-authenticationKeyIssuerID`; this bypasses
-   Xcode's account session entirely and is what CI would use anyway;
-   (2) failing that, a longer screen-lock delay on the Mac mini, which
-   only narrows the window; (3) until then, uploads happen with the
-   developer at the unlocked Mac; a retry then works with no Xcode
-   fiddling. `ios/ExportOptions.plist` needs no change for the key. No
-   iCloud Drive is signed in on the Mac, so the key file cannot be dropped
-   in from the phone; generating and placing it is a task for a session
-   at the machine.
 
 When an item is done, delete it from this list rather than marking it; the list is
 meant to empty out.
