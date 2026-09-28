@@ -292,12 +292,11 @@ final class ChipButton: UIControl {
     init(style: Style) {
         self.style = style
         super.init(frame: .zero)
-        layer.cornerRadius = 8
+        // Drawn like a key (`KeyStyle`), so the builder reads as part of the
+        // keyboard rather than a panel laid over it.
+        layer.cornerRadius = KeyStyle.cornerRadius
         layer.cornerCurve = .continuous
-        layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.25
-        layer.shadowOffset = CGSize(width: 0, height: 1)
-        layer.shadowRadius = 0
+        KeyStyle.applyShadow(to: layer, traits: traitCollection)
         label.font = .systemFont(ofSize: 14)
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
@@ -322,6 +321,11 @@ final class ChipButton: UIControl {
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius).cgPath
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        KeyStyle.applyShadow(to: layer, traits: traitCollection)
+    }
+
     override var isSelected: Bool {
         didSet {
             applyColours()
@@ -341,14 +345,15 @@ final class ChipButton: UIControl {
         let inverted = isSelected != isHighlighted
         switch style {
         case .plain:
-            backgroundColor = inverted ? .label : .systemBackground
+            backgroundColor = inverted ? .label : KeyStyle.letterKey
             label.textColor = inverted ? .systemBackground : .label
         case .function:
-            backgroundColor = inverted ? .label : .systemFill
+            backgroundColor = inverted ? .label : KeyStyle.functionKey
             label.textColor = inverted ? .systemBackground : .label
         case .prominent:
-            backgroundColor = isHighlighted ? UIColor.tintColor.withAlphaComponent(0.7) : .tintColor
-            label.textColor = .white
+            // The blue search key, and pressed it goes white like one.
+            backgroundColor = isHighlighted ? KeyStyle.letterKey : KeyStyle.actionKey
+            label.textColor = isHighlighted ? .label : .white
         }
     }
 }

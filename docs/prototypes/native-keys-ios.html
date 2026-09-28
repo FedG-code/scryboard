@@ -1,0 +1,347 @@
+<!doctype html>
+<!--
+  Scryboard prototype: four ways to draw the keyboard extension's keys so it
+  reads as a native iOS keyboard, plus the builder key's icon in place
+  (2026-09-28). Open this file in a browser, ideally on the phone: every
+  keyboard is drawn at 1 pt = 1 CSS px, 320 pt tall, so at 390 pt wide it is
+  the real size. Nothing talks to Scryfall; the cards in grid mode are drawn
+  in CSS, never embedded images. Companion research: "Native keyboard styling
+  research" (Claude doc). Values marked "replica" come from open-source
+  replicas that measured the system keyboard, not from Apple.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scryboard Native Keys iOS</title>
+<style>
+:root{
+  --bg:#f1f2f5; --ink:#17181c; --muted:#666b76; --line:#d9dbe1; --panel:#ffffff; --accent:#0a66d6; --tab-bg:#e4e6ec;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121317; --ink:#e9eaee; --muted:#9a9ea9; --line:#2a2c33; --panel:#1b1c21; --accent:#5aa0ff; --tab-bg:#22242b; }}
+:root[data-theme="dark"]{ --bg:#121317; --ink:#e9eaee; --muted:#9a9ea9; --line:#2a2c33; --panel:#1b1c21; --accent:#5aa0ff; --tab-bg:#22242b; }
+
+html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif}
+body{margin:0;padding-block:24px 56px;padding-inline:16px;line-height:1.45}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+p.lead{color:var(--muted);margin:0 0 16px;max-width:64ch;font-size:15px}
+.tabs{display:flex;gap:4px;background:var(--tab-bg);padding:4px;border-radius:12px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:1 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:13px;padding:8px 10px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.theme{display:flex;gap:4px;justify-content:flex-end;margin-bottom:14px}
+.theme button{border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;cursor:pointer}
+.theme button[aria-pressed="true"]{color:var(--ink);border-color:var(--accent)}
+.panel[hidden]{display:none}
+.notes{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 16px}
+.notes h2{font-size:16px;margin:0 0 6px}
+.notes p{margin:0 0 6px;font-size:14px;color:var(--muted)}
+.notes p b{color:var(--ink);font-weight:600}
+.modes{display:flex;flex-direction:column;gap:22px}
+.mode h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;justify-items:center}
+body[data-show="light"] .frame[data-theme="dark"],body[data-show="dark"] .frame[data-theme="light"]{display:none}
+.cand{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.cand:first-of-type{border-top:0}
+.cand .who{font-size:13px}
+.cand .who b{display:block;font-size:14px}
+.cand .who code{font-size:11px;color:var(--muted)}
+.cand .who .g{color:var(--muted);display:block;margin-top:2px}
+.cand .rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+@media (max-width:560px){.cand{grid-template-columns:1fr}}
+.pick{margin-top:10px;font-size:13px;color:var(--muted)}
+
+/* ---------- the phone frame ---------- */
+.frame{width:393px;max-width:100%;border-radius:22px;overflow:hidden;position:relative;user-select:none;-webkit-user-select:none;
+  --host:#ffffff;--host-ink:#000;--bubble:#e9e9eb;--bubble-me:#0a7cff;--field:#f2f2f7;--field-line:#c7c7cc}
+.frame[data-theme="dark"]{--host:#000;--host-ink:#fff;--bubble:#262629;--bubble-me:#0a7cff;--field:#1c1c1e;--field-line:#3a3a3c}
+.frame::after{content:attr(data-caption);position:absolute;top:8px;left:12px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--host-ink);opacity:.45}
+.host{background:var(--host);color:var(--host-ink);height:118px;display:flex;flex-direction:column;justify-content:flex-end;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif}
+.chat{padding:0 12px 6px;display:flex;flex-direction:column;gap:5px}
+.bubble{background:var(--bubble);border-radius:16px;padding:6px 11px;font-size:14px;max-width:70%;align-self:flex-start}
+.bubble.me{background:var(--bubble-me);color:#fff;align-self:flex-end}
+.compose{display:flex;align-items:center;gap:8px;padding:6px 10px 8px}
+.compose .plus{width:30px;height:30px;border-radius:15px;background:var(--field);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--host-ink);opacity:.7}
+.compose .field{flex:1;height:32px;border-radius:16px;border:1px solid var(--field-line);background:transparent;position:relative}
+.compose .field::after{content:"";position:absolute;left:12px;top:7px;width:2px;height:18px;background:#0a7cff}
+
+/* ---------- the keyboard: tokens per option ---------- */
+.kb{height:320px;position:relative;display:flex;flex-direction:column;background:var(--kbd);color:var(--ink);border-radius:var(--kbo) var(--kbo) 0 0;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;overflow:hidden;
+  --kbo:20px;--kh:42px;--pitch:54px;--kr:5px;--gap:6px;--side:3px;--lf:24px;--lw:300;--ff:16px;--fw:400;--sym:20px;--symw:300}
+.frame[data-theme="light"] .kb{--kbd:#d1d3d9;--key:#ffffff;--fn:#abb1ba;--ink:#000;--sh:0 1px 0 rgba(0,0,0,.30);--tint:#007aff;--pill:rgba(118,118,128,.14);--pmuted:rgba(60,60,67,.6);--pop:#ffffff;--pressed-key:#abb1ba;--pressed-fn:#ffffff;--chip:#ffffff;--chip-on:#000;--chip-on-ink:#fff;--caps:#e3e5ea;--caps-ink:#000}
+.frame[data-theme="dark"] .kb{--kbd:#2b2b2b;--key:#6b6b6b;--fn:#474747;--ink:#fff;--sh:0 1px 0 rgba(0,0,0,.70);--tint:#0a84ff;--pill:rgba(118,118,128,.28);--pmuted:rgba(235,235,245,.6);--pop:#6b6b6b;--pressed-key:#474747;--pressed-fn:#6b6b6b;--chip:#6b6b6b;--chip-on:#fff;--chip-on-ink:#000;--caps:#474747;--caps-ink:#fff}
+
+/* Today: what the extension draws on 2026-09-28 */
+.opt-today .kb{--kh:42px;--pitch:52px;--kr:5px;--gap:6px;--lf:20px;--lw:400;--ff:15px;--sym:17px;--symw:400;--kbo:20px}
+.frame[data-theme="light"].opt-today .kb{--kbd:#d1d3d9;--key:#ffffff;--fn:rgba(120,120,128,.2);--sh:0 1px 0 rgba(0,0,0,.25);--tint:#007aff;--pressed-key:rgba(120,120,128,.2);--pressed-fn:#ffffff}
+.frame[data-theme="dark"].opt-today .kb{--kbd:#1c1c1e;--key:#000000;--fn:rgba(120,120,128,.36);--sh:0 1px 0 rgba(0,0,0,.25);--tint:#0a84ff;--pressed-key:rgba(120,120,128,.36);--pressed-fn:#000;--chip:#000;--caps:rgba(120,120,128,.36)}
+.opt-today .kb .go .cap{background:var(--fn);color:var(--ink)}
+.opt-today .kb .rows{padding-top:2px}
+
+/* A: system replica (KeyboardKit / Tasty values) */
+.opt-a .kb{--kh:42px;--pitch:54px;--kr:5px;--gap:6px;--lf:24px;--lw:300;--ff:16px;--sym:20px;--symw:300}
+
+/* B: iOS 26 glass reading */
+.opt-b .kb{--kh:42px;--pitch:54px;--kr:8px;--gap:6px;--lf:24px;--lw:300;--ff:16px;--sym:20px;--symw:300;backdrop-filter:blur(26px) saturate(1.5);-webkit-backdrop-filter:blur(26px) saturate(1.5)}
+.frame[data-theme="light"].opt-b .kb{--kbd:rgba(226,228,234,.72);--key:rgba(255,255,255,.66);--fn:rgba(255,255,255,.30);--sh:0 1px 2px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.75);--pill:rgba(255,255,255,.42);--pop:rgba(255,255,255,.92);--pressed-key:rgba(255,255,255,.30);--pressed-fn:rgba(255,255,255,.66);--chip:rgba(255,255,255,.66);--caps:rgba(255,255,255,.6)}
+.frame[data-theme="dark"].opt-b .kb{--kbd:rgba(24,24,26,.70);--key:rgba(255,255,255,.17);--fn:rgba(255,255,255,.075);--sh:0 1px 2px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.16);--pill:rgba(255,255,255,.10);--pop:rgba(90,90,94,.94);--pressed-key:rgba(255,255,255,.075);--pressed-fn:rgba(255,255,255,.17);--chip:rgba(255,255,255,.17);--caps:rgba(255,255,255,.14)}
+.opt-b .kb .cap{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.opt-b .kb .go .cap{background:color-mix(in srgb,var(--tint) 88%,transparent)}
+.opt-b .frame-bg{opacity:1}
+
+/* C: quiet flat */
+.opt-c .kb{--kh:42px;--pitch:54px;--kr:6px;--gap:6px;--lf:24px;--lw:300;--ff:16px;--sym:20px;--symw:300;--sh:none}
+.frame[data-theme="light"].opt-c .kb{--fn:#b4b9c2;--kbd:#d4d6dc}
+.frame[data-theme="dark"].opt-c .kb{--key:#636366;--fn:#454548;--kbd:#2a2a2c}
+
+/* ---------- keyboard parts ---------- */
+.pillrow{padding:6px 8px;flex:none}
+.pill{height:36px;border-radius:10px;background:var(--pill);display:flex;align-items:center;gap:6px;padding:0 6px 0 10px;font-size:17px}
+.pill svg{width:20px;height:20px;flex:none;color:var(--pmuted)}
+.pill .q{flex:1;white-space:nowrap;overflow:hidden;min-height:22px;line-height:22px}
+.pill .q.ph{color:var(--pmuted)}
+.pill .caret{display:inline-block;width:2px;height:22px;background:var(--tint);vertical-align:-5px;border-radius:1px;margin-left:1px}
+.pill .x{width:22px;height:22px;flex:none;color:var(--pmuted)}
+.rows{flex:1;display:flex;flex-direction:column;justify-content:flex-start;padding:0 var(--side)}
+.row{display:flex;justify-content:center;height:var(--pitch);align-items:flex-start;padding-top:calc((var(--pitch) - var(--kh)) / 2)}
+.key{flex:0 0 calc(var(--n) * 10%);padding:0 calc(var(--gap) / 2);box-sizing:border-box;position:relative}
+.cap{height:var(--kh);border-radius:var(--kr);background:var(--key);box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;font-size:var(--lf);font-weight:var(--lw);color:var(--ink);line-height:1;
+  -webkit-font-smoothing:antialiased}
+.key.fn .cap{background:var(--fn);font-size:var(--ff);font-weight:var(--fw)}
+.key.fn .cap svg{width:calc(var(--sym) + 2px);height:calc(var(--sym) + 2px)}
+.key.go .cap{background:var(--tint);color:#fff}
+.key.pressed .cap{background:var(--pressed-key)}
+.key.fn.pressed .cap{background:var(--pressed-fn)}
+.key svg{fill:none;stroke:currentColor;stroke-width:var(--symw-px,1.6);stroke-linecap:round;stroke-linejoin:round}
+.pop{position:absolute;left:50%;bottom:calc(var(--kh) - 8px);transform:translateX(-50%);width:calc(100% + 26px);height:55px;border-radius:10px 10px 6px 6px;background:var(--pop);box-shadow:0 0 0 .5px rgba(0,0,0,.5),0 2px 5px rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:300;color:var(--ink);z-index:3}
+.pop::after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:12px;background:var(--pop)}
+.opt-b .pop{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+
+/* builder */
+.bld{flex:1;display:flex;flex-direction:column;padding:0 8px 6px;gap:6px;min-height:0;position:relative}
+.sent{flex:none;padding:2px 4px;min-height:38px}
+.sent .w{font-size:15px;line-height:1.25}
+.sent .w.ph{color:var(--pmuted)}
+.sent .c{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;color:var(--tint);height:15px;margin-top:2px}
+.pane{flex:1;min-height:0;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;overflow:hidden;position:relative}
+.chip{height:36px;border-radius:var(--cr,var(--kr));background:var(--chip);box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);box-sizing:border-box;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.c3{flex:0 0 calc((100% - 12px) / 3)}
+.chip.c2{flex:0 0 calc((100% - 6px) / 2)}
+.chip.sq{flex:0 0 44px;height:44px;font-size:18px;font-weight:700}
+.chip.on{background:var(--chip-on);color:var(--chip-on-ink)}
+.chip.fnc{background:var(--fn)}
+.chip.dis{opacity:.45}
+.chip.go{background:var(--tint);color:#fff;font-weight:600}
+.acts{flex:none;display:flex;gap:6px;height:40px}
+.acts .chip{height:40px;font-size:15px;font-weight:600}
+.acts .not{flex:0 0 64px}
+.acts .add{flex:1.4}
+.acts .go{flex:1}
+.fade{position:absolute;left:0;right:0;bottom:0;height:28px;background:linear-gradient(to bottom,transparent,var(--kbd));pointer-events:none}
+.opt-b .fade{display:none}
+
+/* grid */
+.grid{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px;position:relative;align-content:start}
+.card{aspect-ratio:5/7;border-radius:6px;background:var(--cf);position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.card::before{content:"";position:absolute;left:8%;right:8%;top:7%;height:9%;border-radius:2px;background:rgba(255,255,255,.75)}
+.card::after{content:"";position:absolute;left:8%;right:8%;top:19%;height:38%;border-radius:2px;background:var(--art)}
+.card i{position:absolute;left:8%;right:8%;top:60%;bottom:7%;border-radius:2px;background:rgba(255,255,255,.7)}
+.caps{position:absolute;right:12px;bottom:12px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:var(--caps);color:var(--caps-ink);display:flex;align-items:center;gap:4px;font-size:14px;font-weight:600;box-shadow:0 2px 5px rgba(0,0,0,.35);z-index:2}
+.caps svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.opt-b .caps{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.bld .caps{bottom:52px}
+
+/* builder-key tab: a bottom row alone */
+.strip{width:393px;max-width:100%;border-radius:12px;overflow:hidden}
+.strip .kb{height:auto;border-radius:12px;padding:6px 0}
+.strip .row{height:calc(var(--kh) + 8px);padding-top:4px}
+.key .lbl{font-size:var(--ff);font-weight:var(--fw)}
+.key.hot .cap{outline:2px solid var(--tint);outline-offset:1px}
+</style>
+</head>
+<body data-show="both">
+<div class="wrap">
+  <h1>Scryboard keys on iOS</h1>
+  <p class="lead">Four ways to draw the keyboard extension, each in light and dark, in typing, builder and grid mode, drawn at real size (1 pt = 1 px, 320 pt tall). One key is shown pressed with its pop-up. The last tab puts each candidate builder-key icon in its slot on the bottom row. Cards are drawn in CSS.</p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="today" aria-selected="true">Today</button>
+    <button role="tab" data-tab="a" aria-selected="false">A · System replica</button>
+    <button role="tab" data-tab="b" aria-selected="false">B · iOS 26 glass</button>
+    <button role="tab" data-tab="c" aria-selected="false">C · Quiet flat</button>
+    <button role="tab" data-tab="key" aria-selected="false">Builder key</button>
+  </div>
+  <div class="theme" role="group" aria-label="Which appearance to show">
+    <button data-show="both" aria-pressed="true">Both</button>
+    <button data-show="light" aria-pressed="false">Light</button>
+    <button data-show="dark" aria-pressed="false">Dark</button>
+  </div>
+
+  <section class="panel" id="panel-today">
+    <div class="notes"><h2>Today, for reference</h2>
+      <p><b>What it is:</b> the build on the phone since 2026-09-25. 42 pt keys on a 52 pt pitch, 5 pt corners, 1 pt hard shadow at 25 %, letters SF 20 pt regular, function labels 15 pt, symbols 17 pt. Letter keys are <code>systemBackground</code>, so pure black in dark mode; function keys <code>systemFill</code>; the search key is grey like the other function keys.</p>
+      <p><b>Reads as off:</b> letters a size too small and too heavy, pure-black dark keys where the system uses mid grey, no blue on the search key, rows a shade too tight.</p></div>
+    <div class="modes" data-opt="today"></div>
+  </section>
+
+  <section class="panel" id="panel-a" hidden>
+    <div class="notes"><h2>A · System replica</h2>
+      <p><b>Copies:</b> KeyboardKit's measured values: backdrop #D1D3D9 / #2B2B2B, white and #ABB1BA keys (#6B6B6B / #474747 dark), 42 pt keys on a 54 pt pitch, 6 pt gaps, 5 pt corners, a 1 pt unblurred bottom edge (30 % light, 70 % dark), lowercase letters in SF light at about 24 pt, 16 pt function labels, 20 pt light SF Symbols, system-blue search key, the key pop-up, and press states that swap the two greys.</p>
+      <p><b>Changes from the system:</b> the search key keeps the return symbol (the system would write the word). The pill and chips take the same greys so nothing in the extension looks foreign.</p>
+      <p><b>Cost in UIKit:</b> low. Constants in <code>KeyButton</code> and <code>KeyboardView</code> (pitch, font, weights, dark colours as fixed asset colours rather than <code>systemBackground</code>), a blue fill for <code>.search</code>, and a pop-up view shown on touch-down for letter keys, about a day with the pop-up. The root view must stay clear on iOS 26 so the system's rounded backdrop shows.</p></div>
+    <div class="modes" data-opt="a"></div>
+  </section>
+
+  <section class="panel" id="panel-b" hidden>
+    <div class="notes"><h2>B · iOS 26 glass</h2>
+      <p><b>Copies:</b> the metrics of A. <b>Changes:</b> translucent keys with a 1 pt top highlight and a soft 2 pt shadow, 8 pt corners, the chat blurred through the backdrop and the keys, a glass tint on the search key and the capsule. This is a reading of Liquid Glass, not what the system keyboard does: Apple's Materials guidance keeps glass for floating controls and the iOS 26 keyboard stayed a solid surface with rounded outer corners.</p>
+      <p><b>Cost in UIKit:</b> medium. <code>UIVisualEffectView</code> under the keyboard and per key (or one blur with masked key shapes), gradient highlight layers, and a memory check: blur views in an extension cost real memory against the ceiling, and the host content under a keyboard extension is not visible to it, so the blur can only sample the extension's own backdrop. In practice the glass would blur a flat colour, which is why the mock-up's effect cannot be reproduced faithfully.</p></div>
+    <div class="modes" data-opt="b"></div>
+  </section>
+
+  <section class="panel" id="panel-c" hidden>
+    <div class="notes"><h2>C · Quiet flat</h2>
+      <p><b>Copies:</b> the metrics, greys, type and blue search key of A. <b>Changes:</b> no shadow, 6 pt corners, function grey a touch lighter so the key edges still separate without the edge line; dark keys a step darker.</p>
+      <p><b>Cost in UIKit:</b> lowest. The same constants as A with the shadow layer removed; no pop-up needed, though one could be added later. The risk is reading as a web page: the hard bottom edge is one of the strongest native cues.</p></div>
+    <div class="modes" data-opt="c"></div>
+  </section>
+
+  <section class="panel" id="panel-key" hidden>
+    <div class="notes"><h2>Builder key in place</h2>
+      <p>The bottom row of option A at real size, with each candidate in the builder slot (outlined). SF Symbols cannot be embedded in a web page, so the glyphs are hand-drawn approximations of the named symbols; on the phone the text labels render in the real SF font. Sliders are what ships today.</p>
+      <p class="pick"><b>Research pick:</b> shrinking lines (<code>line.3.horizontal.decrease</code>) first, the word "Filter" second.</p></div>
+    <div id="cands"></div>
+  </section>
+</div>
+
+<script>
+// ---------- SF-like glyphs, hand drawn on a 24-unit grid ----------
+const G = {
+  shift:'<svg viewBox="0 0 24 24"><path d="M12 4 4 13h4.5v6h7v-6H20z"/></svg>',
+  delete:'<svg viewBox="0 0 24 24"><path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9L3 12z"/><path d="m11.5 9.5 5 5m0-5-5 5"/></svg>',
+  globe:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c3 3.2 3 13.8 0 17M12 3.5c-3 3.2-3 13.8 0 17"/></svg>',
+  ret:'<svg viewBox="0 0 24 24"><path d="M19 6v6a2 2 0 0 1-2 2H6"/><path d="m9 10.5-3.5 3.5L9 17.5"/></svg>',
+  mag:'<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4.5 4.5"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="m8.5 8.5 7 7m0-7-7 7" stroke="var(--kbd)" stroke-width="2"/></svg>',
+  chev:'<svg viewBox="0 0 24 24"><path d="m14 5-7 7 7 7"/></svg>',
+  // builder-key candidates
+  sliders:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="var(--cap-bg)"/><circle cx="15" cy="12" r="2" fill="var(--cap-bg)"/><circle cx="7" cy="17" r="2" fill="var(--cap-bg)"/></svg>',
+  decrease:'<svg viewBox="0 0 24 24"><path d="M4 7h16M7 12h10M10 17h4"/></svg>',
+  decreaseCircle:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M7 9.5h10M8.5 12.5h7M10 15.5h4"/></svg>',
+  textMag:'<svg viewBox="0 0 24 24"><path d="M4 6h9M4 10h6M4 14h4.5"/><circle cx="15.5" cy="14" r="4"/><path d="m18.5 17 3 3"/></svg>',
+  wand:'<svg viewBox="0 0 24 24"><path d="M4 20 15 9"/><path d="m15 9 1.8-1.8"/><path d="M18 3v3M16.5 4.5h3M20 9.5v2.5M18.75 10.75h2.5M8 3.5v2M7 4.5h2"/></svg>',
+  checklist:'<svg viewBox="0 0 24 24"><path d="m3.5 7 1.8 1.8L8.5 5.5M11 7h9M3.5 15l1.8 1.8 3.2-3.3M11 15h9"/></svg>',
+  rect3:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="7.5" height="14" rx="1.5"/><rect x="13.5" y="5" width="7.5" height="6" rx="1.5"/><rect x="13.5" y="13" width="7.5" height="6" rx="1.5"/></svg>',
+  hammer:'<svg viewBox="0 0 24 24"><path d="m13.5 8.5-9 9 2 2 9-9"/><path d="m11 6 3.5-3.5 3 1 3.5 3.5-1.5 1.5 1 1-2 2-1-1-1.5 1.5z"/></svg>',
+};
+
+const LETTERS = [
+  ['"','!','-','(','<',':','>',')','=','/'].map(t=>({t,n:1})),
+  'qwertyuiop'.split('').map(t=>({t,n:1})),
+  'asdfghjkl'.split('').map(t=>({t,n:1})),
+  [{i:'shift',n:1.5,fn:1},...'zxcvbnm'.split('').map(t=>({t,n:1})),{i:'delete',n:1.5,fn:1}],
+  [{t:'123',n:1.25,fn:1},{i:'sliders',n:1.25,fn:1,builder:1},{i:'globe',n:1.25,fn:1},{t:'',n:3.75},{i:'ret',n:2.5,fn:1,go:1}],
+];
+const FILTERS=['Colour identity','Colour','Type','Mana value','Rarity','Format','Power','Toughness','Keyword','Card text'];
+const CARDS=[['#f0e9d2','#c9b98a'],['#3d6fb5','#7aa0d8'],['#3a3538','#6e6468'],['#c2452d','#e08a5a'],['#3f7a46','#8fbd6c'],['#c8b98a','#e5d7a8'],['#8e6bb0','#c1a5d9'],['#3d6fb5','#9cc0e8'],['#3f7a46','#a7cf84']];
+
+function key(k, opts={}){
+  const el=document.createElement('div');
+  el.className='key'+(k.fn?' fn':'')+(k.go?' go':'')+(k.pressed?' pressed':'')+(k.hot?' hot':'');
+  el.style.setProperty('--n',k.n);
+  let inner = k.i ? G[k.i] : (k.lbl?`<span class="lbl">${k.lbl}</span>`:k.t);
+  if(k.builder && opts.builder){ inner = opts.builder.icon ? G[opts.builder.icon] : `<span class="lbl">${opts.builder.label}</span>`; }
+  el.innerHTML=`<div class="cap">${inner}</div>`+(k.pressed?`<div class="pop">${k.t}</div>`:'');
+  return el;
+}
+function rows(layout, opts){
+  const r=document.createElement('div'); r.className='rows';
+  layout.forEach(row=>{const d=document.createElement('div');d.className='row';row.forEach(k=>d.appendChild(key(k,opts)));r.appendChild(d);});
+  return r;
+}
+function pill(text, editing){
+  const ph = !text && !editing;
+  return `<div class="pillrow"><div class="pill">${G.mag}<div class="q${ph?' ph':''}">${ph?'Search cards':text}${editing?'<span class="caret"></span>':''}</div>${text?`<div class="x">${G.x}</div>`:''}</div></div>`;
+}
+function keyboard(mode, opts={}){
+  const kb=document.createElement('div'); kb.className='kb';
+  if(mode==='letters'){
+    kb.innerHTML=pill('t:drag',true);
+    const L=LETTERS.map(r=>r.map(k=>({...k})));
+    L[1][4].pressed=1; // t
+    kb.appendChild(rows(L,opts));
+  } else if(mode==='builder'){
+    kb.innerHTML=pill('t:dragon ',false)+`<div class="bld"><div class="sent"><div class="w ph">Pick what to filter by</div><div class="c"></div></div><div class="pane">${FILTERS.map(f=>`<div class="chip c3">${f}</div>`).join('')}<div class="fade"></div></div><div class="acts"><div class="chip fnc not">Not</div><div class="chip add dis">Add</div><div class="chip go">Search</div></div></div>`;
+  } else {
+    kb.innerHTML=pill('Shivan Dragon',false)+`<div class="grid">${CARDS.map(c=>`<div class="card" style="--cf:${c[0]};--art:${c[1]}"><i></i></div>`).join('')}<div class="caps">${G.chev}Back</div></div>`;
+  }
+  return kb;
+}
+function frame(opt, theme, mode){
+  const f=document.createElement('div'); f.className='frame opt-'+opt; f.dataset.theme=theme; f.dataset.caption=theme;
+  f.innerHTML=`<div class="host"><div class="chat"><div class="bubble">Which dragon was it again?</div><div class="bubble me">Hang on, sending it</div></div><div class="compose"><div class="plus">+</div><div class="field"></div></div></div>`;
+  f.appendChild(keyboard(mode));
+  return f;
+}
+const MODES=[['letters','Typing mode, letters plane'],['builder','Query builder, first step'],['grid','Grid mode, printings of a card']];
+document.querySelectorAll('.modes').forEach(m=>{
+  const opt=m.dataset.opt;
+  MODES.forEach(([mode,title])=>{
+    const s=document.createElement('div'); s.className='mode'; s.innerHTML=`<h3>${title}</h3>`;
+    const p=document.createElement('div'); p.className='pair';
+    p.appendChild(frame(opt,'light',mode)); p.appendChild(frame(opt,'dark',mode));
+    s.appendChild(p); m.appendChild(s);
+  });
+});
+
+// ---------- builder-key candidates ----------
+const CANDS=[
+  {name:'Sliders (today)',sf:'slider.horizontal.3',guess:'Settings, adjust',icon:'sliders'},
+  {name:'Shrinking lines',sf:'line.3.horizontal.decrease',guess:'Filters (as in Mail)',icon:'decrease'},
+  {name:'Shrinking lines, circled',sf:'line.3.horizontal.decrease.circle',guess:'Filters, the Mail button',icon:'decreaseCircle'},
+  {name:'Magnifier over text',sf:'text.magnifyingglass',guess:'Search options',icon:'textMag'},
+  {name:'Wand and stars',sf:'wand.and.stars',guess:'Auto, magic, AI',icon:'wand'},
+  {name:'Checklist',sf:'checklist',guess:'Pick from a list',icon:'checklist'},
+  {name:'Three rectangles',sf:'rectangle.3.group',guess:'Layout, widgets',icon:'rect3'},
+  {name:'Hammer',sf:'hammer',guess:'Build (a developer tool)',icon:'hammer'},
+  {name:'Word: Filter',sf:'text label, 16 pt',guess:'Filter',label:'Filter'},
+  {name:'Word: Build',sf:'text label, 16 pt',guess:'Build a deck?',label:'Build'},
+];
+const bottom=LETTERS[4].map(k=>({...k})); bottom[1].hot=1;
+const cands=document.getElementById('cands');
+CANDS.forEach(c=>{
+  const row=document.createElement('div'); row.className='cand';
+  row.innerHTML=`<div class="who"><b>${c.name}</b><code>${c.sf}</code><span class="g">First guess: ${c.guess}</span></div>`;
+  const r=document.createElement('div'); r.className='rows';
+  ['light','dark'].forEach(theme=>{
+    const s=document.createElement('div'); s.className='strip frame opt-a'; s.dataset.theme=theme;
+    const kb=document.createElement('div'); kb.className='kb';
+    kb.appendChild(rows([bottom],{builder:c}));
+    s.appendChild(kb); r.appendChild(s);
+  });
+  row.appendChild(r); cands.appendChild(row);
+});
+
+// ---------- chrome ----------
+function showTab(id){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.hidden=(p.id!=='panel-'+id));
+  try{localStorage.setItem('ios-tab',id)}catch(e){}
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+document.querySelectorAll('.theme button').forEach(b=>b.onclick=()=>{
+  document.body.dataset.show=b.dataset.show;
+  document.querySelectorAll('.theme button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  try{localStorage.setItem('ios-show',b.dataset.show)}catch(e){}
+});
+try{const t=localStorage.getItem('ios-tab'); if(t&&document.getElementById('panel-'+t)) showTab(t);
+    const s=localStorage.getItem('ios-show'); if(s){document.body.dataset.show=s;document.querySelectorAll('.theme button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.show===s));}}catch(e){}
+// the sliders' knobs are filled with the key colour so they read as knobs on every fill
+document.querySelectorAll('.cap').forEach(c=>c.style.setProperty('--cap-bg',getComputedStyle(c).backgroundColor));
+</script>
+</body>
+</html>

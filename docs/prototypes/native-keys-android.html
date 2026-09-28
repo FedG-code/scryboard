@@ -1,0 +1,290 @@
+<!doctype html>
+<!--
+  Scryboard prototype: three ways to draw the planned Android keyboard so it
+  reads as native next to Gboard on a Pixel, plus the builder key's icon in
+  place (2026-09-28). Open in a browser, ideally on a phone: every keyboard
+  is drawn at 1 dp = 1 CSS px, 320 dp tall. Nothing talks to Scryfall; the
+  cards in grid mode are drawn in CSS. Roboto and the Material Symbols come
+  from Google Fonts. Companion research: "Native keyboard styling research"
+  (Claude doc). Gboard values are estimates from press coverage; measured
+  values are AOSP LatinIME's, HeliBoard's, FlorisBoard's and the M3 tokens.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scryboard Native Keys Android</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=swap">
+<style>
+:root{
+  --bg:#f1f2f5; --ink:#17181c; --muted:#666b76; --line:#d9dbe1; --panel:#ffffff; --accent:#0a66d6; --tab-bg:#e4e6ec;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121317; --ink:#e9eaee; --muted:#9a9ea9; --line:#2a2c33; --panel:#1b1c21; --accent:#5aa0ff; --tab-bg:#22242b; }}
+:root[data-theme="dark"]{ --bg:#121317; --ink:#e9eaee; --muted:#9a9ea9; --line:#2a2c33; --panel:#1b1c21; --accent:#5aa0ff; --tab-bg:#22242b; }
+
+html,body{background:var(--bg);color:var(--ink);font-family:Roboto,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+body{margin:0;padding-block:24px 56px;padding-inline:16px;line-height:1.45}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+p.lead{color:var(--muted);margin:0 0 16px;max-width:64ch;font-size:15px}
+.tabs{display:flex;gap:4px;background:var(--tab-bg);padding:4px;border-radius:12px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:1 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:500;font-size:13px;padding:8px 10px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.theme{display:flex;gap:4px;justify-content:flex-end;margin-bottom:14px}
+.theme button{border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-size:12px;font-weight:500;padding:5px 10px;border-radius:999px;cursor:pointer}
+.theme button[aria-pressed="true"]{color:var(--ink);border-color:var(--accent)}
+.panel[hidden]{display:none}
+.notes{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 16px}
+.notes h2{font-size:16px;margin:0 0 6px}
+.notes p{margin:0 0 6px;font-size:14px;color:var(--muted)}
+.notes p b{color:var(--ink);font-weight:500}
+.modes{display:flex;flex-direction:column;gap:22px}
+.mode h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-weight:500}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;justify-items:center}
+body[data-show="light"] .frame[data-theme="dark"],body[data-show="dark"] .frame[data-theme="light"]{display:none}
+.cand{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.cand:first-of-type{border-top:0}
+.cand .who{font-size:13px}
+.cand .who b{display:block;font-size:14px}
+.cand .who code{font-size:11px;color:var(--muted)}
+.cand .who .g{color:var(--muted);display:block;margin-top:2px}
+.cand .rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+@media (max-width:560px){.cand{grid-template-columns:1fr}}
+.pick{margin-top:10px;font-size:13px;color:var(--muted)}
+.ms{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;-webkit-font-smoothing:antialiased;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+
+/* ---------- the phone frame ---------- */
+.frame{width:393px;max-width:100%;border-radius:22px;overflow:hidden;position:relative;user-select:none;-webkit-user-select:none;
+  --host:#ffffff;--host-ink:#1f1f1f;--bubble:#eceff1;--bubble-me:#d3e3fd;--bubble-me-ink:#041e49;--field:#f0f2f5}
+.frame[data-theme="dark"]{--host:#131314;--host-ink:#e3e3e3;--bubble:#2a2b2e;--bubble-me:#0842a0;--bubble-me-ink:#d3e3fd;--field:#1e1f22}
+.frame::after{content:attr(data-caption);position:absolute;top:8px;left:12px;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--host-ink);opacity:.45}
+.host{background:var(--host);color:var(--host-ink);height:118px;display:flex;flex-direction:column;justify-content:flex-end}
+.chat{padding:0 12px 6px;display:flex;flex-direction:column;gap:5px}
+.bubble{background:var(--bubble);border-radius:18px 18px 18px 4px;padding:7px 12px;font-size:14px;max-width:70%;align-self:flex-start}
+.bubble.me{background:var(--bubble-me);color:var(--bubble-me-ink);align-self:flex-end;border-radius:18px 18px 4px 18px}
+.compose{display:flex;align-items:center;gap:8px;padding:6px 10px 8px}
+.compose .field{flex:1;height:40px;border-radius:20px;background:var(--field);position:relative}
+.compose .field::after{content:"";position:absolute;left:16px;top:11px;width:2px;height:18px;background:var(--accent)}
+.compose .send{width:40px;height:40px;border-radius:20px;background:var(--field);display:flex;align-items:center;justify-content:center;color:var(--host-ink);opacity:.7}
+
+/* ---------- the keyboard: tokens per option ---------- */
+.kb{height:320px;position:relative;display:flex;flex-direction:column;background:var(--kbd);color:var(--ink);font-family:Roboto,"Segoe UI",Helvetica,Arial,sans-serif;overflow:hidden;
+  --kh:46px;--pitch:54px;--kr:8px;--gap:6px;--side:4px;--lf:22px;--lw:400;--ff:16px;--fw:500;--sym:24px}
+/* A: Gboard default (non-dynamic greys, Google blue on enter) */
+.frame[data-theme="light"].opt-a .kb{--kbd:#e9ebee;--key:#ffffff;--fn:#d5d9df;--ink:#1f1f1f;--fnink:#3c4043;--tint:#1a73e8;--tintink:#ffffff;--pill:#ffffff;--pmuted:#5f6368;--pop:#ffffff;--pressed-key:#e9ebee;--pressed-fn:#c6cbd2;--chip:#ffffff;--chip-line:#c4c7c5;--chip-on:#d3e3fd;--chip-on-ink:#041e49;--caps:#d5d9df;--caps-ink:#1f1f1f;--space:#ffffff}
+.frame[data-theme="dark"].opt-a .kb{--kbd:#1e1f22;--key:#303134;--fn:#26272a;--ink:#e3e3e3;--fnink:#c4c7c5;--tint:#8ab4f8;--tintink:#062e6f;--pill:#303134;--pmuted:#9aa0a6;--pop:#3c4043;--pressed-key:#3c4043;--pressed-fn:#34353a;--chip:#303134;--chip-line:#5f6368;--chip-on:#0842a0;--chip-on-ink:#d3e3fd;--caps:#303134;--caps-ink:#e3e3e3;--space:#303134}
+/* B: Material You dynamic colour (baseline seed, stands in for the wallpaper's) */
+.frame[data-theme="light"].opt-b .kb{--kbd:#f3edf7;--key:#ffffff;--fn:#e8def8;--ink:#1d1b20;--fnink:#1d192b;--tint:#6750a4;--tintink:#ffffff;--pill:#fef7ff;--pmuted:#49454f;--pop:#e8def8;--pressed-key:#ece6f0;--pressed-fn:#d9cfe8;--chip:#ffffff;--chip-line:#cac4d0;--chip-on:#e8def8;--chip-on-ink:#1d192b;--caps:#e8def8;--caps-ink:#1d192b;--space:#ffffff}
+.frame[data-theme="dark"].opt-b .kb{--kbd:#211f26;--key:#2b2930;--fn:#4a4458;--ink:#e6e0e9;--fnink:#e8def8;--tint:#d0bcff;--tintink:#381e72;--pill:#2b2930;--pmuted:#cac4d0;--pop:#4a4458;--pressed-key:#36343b;--pressed-fn:#5a5468;--chip:#2b2930;--chip-line:#49454f;--chip-on:#4a4458;--chip-on-ink:#e8def8;--caps:#4a4458;--caps-ink:#e8def8;--space:#2b2930}
+/* C: minimal, borderless (Gboard with key borders off) */
+.opt-c .kb{--kr:24px}
+.frame[data-theme="light"].opt-c .kb{--kbd:#f3edf7;--key:transparent;--fn:transparent;--ink:#1d1b20;--fnink:#49454f;--tint:#6750a4;--tintink:#ffffff;--pill:#ffffff;--pmuted:#49454f;--pop:#e8def8;--pressed-key:rgba(29,27,32,.10);--pressed-fn:rgba(29,27,32,.10);--chip:transparent;--chip-line:#cac4d0;--chip-on:#e8def8;--chip-on-ink:#1d192b;--caps:#e8def8;--caps-ink:#1d192b;--space:#e7e0ec}
+.frame[data-theme="dark"].opt-c .kb{--kbd:#211f26;--key:transparent;--fn:transparent;--ink:#e6e0e9;--fnink:#cac4d0;--tint:#d0bcff;--tintink:#381e72;--pill:#2b2930;--pmuted:#cac4d0;--pop:#4a4458;--pressed-key:rgba(230,224,233,.10);--pressed-fn:rgba(230,224,233,.10);--chip:transparent;--chip-line:#49454f;--chip-on:#4a4458;--chip-on-ink:#e8def8;--caps:#4a4458;--caps-ink:#e8def8;--space:#36343b}
+
+/* ---------- keyboard parts ---------- */
+.pillrow{padding:6px 8px 2px;flex:none}
+.pill{height:40px;border-radius:20px;background:var(--pill);display:flex;align-items:center;gap:8px;padding:0 10px 0 12px;font-size:16px}
+.pill .ms{font-size:22px;color:var(--pmuted)}
+.pill .q{flex:1;white-space:nowrap;overflow:hidden;min-height:22px;line-height:22px}
+.pill .q.ph{color:var(--pmuted)}
+.pill .caret{display:inline-block;width:2px;height:20px;background:var(--tint);vertical-align:-4px;border-radius:1px;margin-left:1px}
+.rows{flex:1;display:flex;flex-direction:column;padding:0 var(--side)}
+.row{display:flex;justify-content:center;height:var(--pitch);align-items:flex-start;padding-top:calc((var(--pitch) - var(--kh)) / 2)}
+.key{flex:0 0 calc(var(--n) * 10%);padding:0 calc(var(--gap) / 2);box-sizing:border-box;position:relative}
+.cap{height:var(--kh);border-radius:var(--kr);background:var(--key);display:flex;align-items:center;justify-content:center;font-size:var(--lf);font-weight:var(--lw);color:var(--ink);line-height:1}
+.key.fn .cap{background:var(--fn);color:var(--fnink);font-size:var(--ff);font-weight:var(--fw)}
+.key.fn .cap .ms{font-size:var(--sym)}
+.key.go .cap{background:var(--tint);color:var(--tintink);border-radius:var(--gor,var(--kr))}
+.key.space .cap{background:var(--space);border-radius:var(--kr)}
+.key.pressed .cap{background:var(--pressed-key)}
+.key.fn.pressed .cap{background:var(--pressed-fn)}
+.opt-a .key.go .cap,.opt-b .key.go .cap{--gor:23px}
+.pop{position:absolute;left:50%;bottom:calc(var(--kh) - 4px);transform:translateX(-50%);width:52px;height:52px;border-radius:26px;background:var(--pop);box-shadow:0 2px 6px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--ink);z-index:3}
+
+/* builder */
+.bld{flex:1;display:flex;flex-direction:column;padding:0 10px 8px;gap:8px;min-height:0;position:relative}
+.sent{flex:none;padding:2px 4px;min-height:38px}
+.sent .w{font-size:15px;line-height:1.25}
+.sent .w.ph{color:var(--pmuted)}
+.sent .c{font-family:"Roboto Mono",ui-monospace,Menlo,monospace;font-size:12px;color:var(--tint);height:15px;margin-top:2px}
+.pane{flex:1;min-height:0;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;overflow:hidden;position:relative}
+.chip{height:32px;border-radius:8px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--chip-line);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--ink);box-sizing:border-box;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.c3{flex:0 0 calc((100% - 16px) / 3)}
+.chip.on{background:var(--chip-on);color:var(--chip-on-ink);box-shadow:none}
+.acts{flex:none;display:flex;gap:8px;height:40px}
+.btn{height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;padding:0 16px;box-sizing:border-box}
+.btn.tonal{background:var(--fn);color:var(--fnink);flex:0 0 72px}
+.btn.outl{box-shadow:inset 0 0 0 1px var(--chip-line);color:var(--tint);flex:1.4;opacity:.45}
+.btn.fill{background:var(--tint);color:var(--tintink);flex:1}
+.fade{position:absolute;left:0;right:0;bottom:0;height:28px;background:linear-gradient(to bottom,transparent,var(--kbd));pointer-events:none}
+
+/* grid */
+.grid{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px;position:relative;align-content:start}
+.card{aspect-ratio:5/7;border-radius:8px;background:var(--cf);position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.card::before{content:"";position:absolute;left:8%;right:8%;top:7%;height:9%;border-radius:2px;background:rgba(255,255,255,.75)}
+.card::after{content:"";position:absolute;left:8%;right:8%;top:19%;height:38%;border-radius:2px;background:var(--art)}
+.card i{position:absolute;left:8%;right:8%;top:60%;bottom:7%;border-radius:2px;background:rgba(255,255,255,.7)}
+.caps{position:absolute;right:12px;bottom:12px;height:40px;padding:0 16px 0 10px;border-radius:20px;background:var(--caps);color:var(--caps-ink);display:flex;align-items:center;gap:4px;font-size:14px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.25);z-index:2}
+.caps .ms{font-size:20px}
+
+/* builder-key tab */
+.strip{width:393px;max-width:100%;border-radius:12px;overflow:hidden}
+.strip .kb{height:auto;border-radius:12px;padding:6px 0}
+.strip .row{height:calc(var(--kh) + 8px);padding-top:4px}
+.key .lbl{font-size:var(--ff);font-weight:var(--fw)}
+.key.hot .cap{outline:2px solid var(--tint);outline-offset:1px}
+</style>
+</head>
+<body data-show="both">
+<div class="wrap">
+  <h1>Scryboard keys on Android</h1>
+  <p class="lead">Three ways to draw the planned Android keyboard next to Gboard on a Pixel, each in light and dark, in typing, builder and grid mode, at real size (1 dp = 1 px, 320 dp tall). One key is shown pressed with Gboard's round pop-up. The last tab puts each candidate builder-key icon in its slot, using the real Material Symbols font. Cards are drawn in CSS.</p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="a" aria-selected="true">A · Gboard default</button>
+    <button role="tab" data-tab="b" aria-selected="false">B · Material You</button>
+    <button role="tab" data-tab="c" aria-selected="false">C · Borderless</button>
+    <button role="tab" data-tab="key" aria-selected="false">Builder key</button>
+  </div>
+  <div class="theme" role="group" aria-label="Which appearance to show">
+    <button data-show="both" aria-pressed="true">Both</button>
+    <button data-show="light" aria-pressed="false">Light</button>
+    <button data-show="dark" aria-pressed="false">Dark</button>
+  </div>
+
+  <section class="panel" id="panel-a">
+    <div class="notes"><h2>A · Gboard default, Material 3</h2>
+      <p><b>Copies:</b> Gboard's non-dynamic theme as described since its 2021 redesign and the February 2025 update: neutral grey backdrop, white letter keys one tone lighter, one shared darker tone for every non-letter key, no shadows or outlines, 8 dp corners, 46 dp keys on a 54 dp pitch with 6 dp gaps, Roboto 22 sp regular letters (Gboard uses Google Sans Text), Material Symbols at 24 dp, the enter key a pill in Google blue carrying the search action's icon, a round pop-up on press, a 10 % state layer.</p>
+      <p><b>Changes:</b> the plane key says <code>?123</code> as Gboard's does; the space bar stays unlabelled where Gboard shows the language; the enter key shows a magnifier, which is what Android draws for a search action, instead of the return symbol.</p>
+      <p><b>Cost in Android views:</b> low. One key view with a rounded-rect background drawable per key class, a ripple or colour swap for the state layer, a popup window for the preview. Colours as fixed resources for light and night.</p></div>
+    <div class="modes" data-opt="a"></div>
+  </section>
+
+  <section class="panel" id="panel-b" hidden>
+    <div class="notes"><h2>B · Material You dynamic colour</h2>
+      <p><b>Copies:</b> the geometry and type of A. <b>Changes:</b> every colour is a Material 3 role taken from the system palette: backdrop <code>surfaceContainer</code>, letter keys <code>surfaceContainerLowest</code> (light) or <code>surfaceContainerHigh</code> (dark), function keys, chips and the Back capsule <code>secondaryContainer</code>, the enter key and Search <code>primary</code>, the pop-up <code>secondaryContainer</code>. The baseline purple stands in for the wallpaper's hue; on a phone the keyboard takes whatever colour the wallpaper gives it, which is the trait users read as "Pixel".</p>
+      <p><b>Cost:</b> low to medium. The same views as A reading <code>system_accent</code> and <code>system_neutral</code> resources (API 31) or the role resources (API 34) through <code>DynamicColors.wrapContextIfAvailable</code>, with A's fixed palette as the fallback below Android 12.</p></div>
+    <div class="modes" data-opt="b"></div>
+  </section>
+
+  <section class="panel" id="panel-c" hidden>
+    <div class="notes"><h2>C · Borderless</h2>
+      <p><b>Copies:</b> Gboard with its "key borders" setting off: letters sit straight on the backdrop, only the space bar and the enter key keep a pill, function glyphs are just glyphs. Material You roles as in B. <b>Changes:</b> chips lose their fill and keep a 1 dp outline as M3 outlined chips; the pressed state is the 10 % state layer alone, which is all that separates keys, so the pop-up matters more.</p>
+      <p><b>Cost:</b> lowest to draw, but the hit targets are invisible, so a first-time user gets less guidance; Gboard ships this as an option, not the default.</p></div>
+    <div class="modes" data-opt="c"></div>
+  </section>
+
+  <section class="panel" id="panel-key" hidden>
+    <div class="notes"><h2>Builder key in place</h2>
+      <p>The bottom row of option A at real size, with each candidate in the builder slot (outlined). These are the real Material Symbols, outlined style, 24 dp. <code>tune</code> is the Android twin of the sliders that ship on iOS today.</p>
+      <p class="pick"><b>Research pick:</b> <code>filter_list</code> first, <code>manage_search</code> second.</p></div>
+    <div id="cands"></div>
+  </section>
+</div>
+
+<script>
+const ms=n=>`<span class="ms">${n}</span>`;
+const LETTERS = [
+  ['"','!','-','(','<',':','>',')','=','/'].map(t=>({t,n:1})),
+  'qwertyuiop'.split('').map(t=>({t,n:1})),
+  'asdfghjkl'.split('').map(t=>({t,n:1})),
+  [{i:'shift',n:1.5,fn:1},...'zxcvbnm'.split('').map(t=>({t,n:1})),{i:'backspace',n:1.5,fn:1}],
+  [{t:'?123',n:1.25,fn:1},{i:'tune',n:1.25,fn:1,builder:1},{i:'language',n:1.25,fn:1},{t:'',n:3.75,space:1},{i:'search',n:2.5,fn:1,go:1}],
+];
+const FILTERS=['Colour identity','Colour','Type','Mana value','Rarity','Format','Power','Toughness','Keyword','Card text'];
+const CARDS=[['#f0e9d2','#c9b98a'],['#3d6fb5','#7aa0d8'],['#3a3538','#6e6468'],['#c2452d','#e08a5a'],['#3f7a46','#8fbd6c'],['#c8b98a','#e5d7a8'],['#8e6bb0','#c1a5d9'],['#3d6fb5','#9cc0e8'],['#3f7a46','#a7cf84']];
+
+function key(k, opts={}){
+  const el=document.createElement('div');
+  el.className='key'+(k.fn?' fn':'')+(k.go?' go':'')+(k.space?' space':'')+(k.pressed?' pressed':'')+(k.hot?' hot':'');
+  el.style.setProperty('--n',k.n);
+  let inner = k.i ? ms(k.i) : (k.lbl?`<span class="lbl">${k.lbl}</span>`:k.t);
+  if(k.builder && opts.builder){ inner = opts.builder.icon ? ms(opts.builder.icon) : `<span class="lbl">${opts.builder.label}</span>`; }
+  el.innerHTML=`<div class="cap">${inner}</div>`+(k.pressed?`<div class="pop">${k.t}</div>`:'');
+  return el;
+}
+function rows(layout, opts){
+  const r=document.createElement('div'); r.className='rows';
+  layout.forEach(row=>{const d=document.createElement('div');d.className='row';row.forEach(k=>d.appendChild(key(k,opts)));r.appendChild(d);});
+  return r;
+}
+function pill(text, editing){
+  const ph = !text && !editing;
+  return `<div class="pillrow"><div class="pill">${ms('search')}<div class="q${ph?' ph':''}">${ph?'Search cards':text}${editing?'<span class="caret"></span>':''}</div>${text?ms('cancel'):''}</div></div>`;
+}
+function keyboard(mode){
+  const kb=document.createElement('div'); kb.className='kb';
+  if(mode==='letters'){
+    kb.innerHTML=pill('t:drag',true);
+    const L=LETTERS.map(r=>r.map(k=>({...k}))); L[1][4].pressed=1;
+    kb.appendChild(rows(L));
+  } else if(mode==='builder'){
+    kb.innerHTML=pill('t:dragon ',false)+`<div class="bld"><div class="sent"><div class="w ph">Pick what to filter by</div><div class="c"></div></div><div class="pane">${FILTERS.map(f=>`<div class="chip c3">${f}</div>`).join('')}<div class="fade"></div></div><div class="acts"><div class="btn tonal">Not</div><div class="btn outl">Add</div><div class="btn fill">Search</div></div></div>`;
+  } else {
+    kb.innerHTML=pill('Shivan Dragon',false)+`<div class="grid">${CARDS.map(c=>`<div class="card" style="--cf:${c[0]};--art:${c[1]}"><i></i></div>`).join('')}<div class="caps">${ms('chevron_left')}Back</div></div>`;
+  }
+  return kb;
+}
+function frame(opt, theme, mode){
+  const f=document.createElement('div'); f.className='frame opt-'+opt; f.dataset.theme=theme; f.dataset.caption=theme;
+  f.innerHTML=`<div class="host"><div class="chat"><div class="bubble">Which dragon was it again?</div><div class="bubble me">Hang on, sending it</div></div><div class="compose"><div class="field"></div><div class="send">${ms('send')}</div></div></div>`;
+  f.appendChild(keyboard(mode));
+  return f;
+}
+const MODES=[['letters','Typing mode, letters plane'],['builder','Query builder, first step'],['grid','Grid mode, printings of a card']];
+document.querySelectorAll('.modes').forEach(m=>{
+  const opt=m.dataset.opt;
+  MODES.forEach(([mode,title])=>{
+    const s=document.createElement('div'); s.className='mode'; s.innerHTML=`<h3>${title}</h3>`;
+    const p=document.createElement('div'); p.className='pair';
+    p.appendChild(frame(opt,'light',mode)); p.appendChild(frame(opt,'dark',mode));
+    s.appendChild(p); m.appendChild(s);
+  });
+});
+
+const CANDS=[
+  {name:'Sliders (iOS today)',sf:'tune',guess:'Settings, adjust',icon:'tune'},
+  {name:'Shrinking lines',sf:'filter_list',guess:'Filters',icon:'filter_list'},
+  {name:'Funnel',sf:'filter_alt',guess:'Filter',icon:'filter_alt'},
+  {name:'Magnifier over lines',sf:'manage_search',guess:'Search options',icon:'manage_search'},
+  {name:'Magic wand',sf:'auto_fix_high',guess:'Auto, magic, AI',icon:'auto_fix_high'},
+  {name:'Checklist',sf:'checklist',guess:'Pick from a list',icon:'checklist'},
+  {name:'Widgets',sf:'widgets',guess:'Layout, widgets',icon:'widgets'},
+  {name:'Construction',sf:'construction',guess:'Build, tools',icon:'construction'},
+  {name:'Word: Filter',sf:'text label, 16 sp medium',guess:'Filter',label:'Filter'},
+  {name:'Word: Build',sf:'text label, 16 sp medium',guess:'Build a deck?',label:'Build'},
+];
+const bottom=LETTERS[4].map(k=>({...k})); bottom[1].hot=1;
+const cands=document.getElementById('cands');
+CANDS.forEach(c=>{
+  const row=document.createElement('div'); row.className='cand';
+  row.innerHTML=`<div class="who"><b>${c.name}</b><code>${c.sf}</code><span class="g">First guess: ${c.guess}</span></div>`;
+  const r=document.createElement('div'); r.className='rows';
+  ['light','dark'].forEach(theme=>{
+    const s=document.createElement('div'); s.className='strip frame opt-a'; s.dataset.theme=theme;
+    const kb=document.createElement('div'); kb.className='kb';
+    kb.appendChild(rows([bottom],{builder:c}));
+    s.appendChild(kb); r.appendChild(s);
+  });
+  row.appendChild(r); cands.appendChild(row);
+});
+
+function showTab(id){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.hidden=(p.id!=='panel-'+id));
+  try{localStorage.setItem('android-tab',id)}catch(e){}
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+document.querySelectorAll('.theme button').forEach(b=>b.onclick=()=>{
+  document.body.dataset.show=b.dataset.show;
+  document.querySelectorAll('.theme button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  try{localStorage.setItem('android-show',b.dataset.show)}catch(e){}
+});
+try{const t=localStorage.getItem('android-tab'); if(t&&document.getElementById('panel-'+t)) showTab(t);
+    const s=localStorage.getItem('android-show'); if(s){document.body.dataset.show=s;document.querySelectorAll('.theme button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.show===s));}}catch(e){}
+</script>
+</body>
+</html>
