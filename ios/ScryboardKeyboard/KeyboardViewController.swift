@@ -9,19 +9,12 @@ import ScryboardUI
 /// the bar is tapped. The return key or the builder's Search shows results;
 /// the QWERTY's builder key comes back here.
 final class KeyboardViewController: UIInputViewController {
-    private enum Mode {
-        /// The query builder. What an empty search bar shows.
-        case building
-        case browsing
-        case typing
-    }
-
-    private let searchBar = SearchBarView()
+    let searchBar = SearchBarView()
     private let builderView = BuilderView()
     private let resultsView = ResultsView()
     private let browseToolbar = BrowseToolbarView()
     /// Floats over the grid while printings are shown. The one way back.
-    private let backButton = BackCapsuleButton()
+    let backButton = BackCapsuleButton()
     private let keyboardView = KeyboardView()
     private let fullAccessNotice = UILabel()
     private let toast = ToastView()
@@ -32,14 +25,15 @@ final class KeyboardViewController: UIInputViewController {
     private var column: UIStackView!
     private var heightConstraint: NSLayoutConstraint?
 
-    private var mode: Mode = .building
+    /// Which pane is under the bar and whether printings fill the grid.
+    /// Every change goes through `apply(_:)`; the rules are
+    /// `KeyboardScreen` in the Kit. Readable for the transition tests.
+    private(set) var screen = KeyboardScreen()
     /// What the user typed, and where the caret sits in it. Stays in the
     /// pill while printings are shown.
     private var query = QueryBuffer()
     /// The held card whose printings fill the grid, if any.
-    private var printings: String? {
-        didSet { resultsView.showsPrintings = printings != nil }
-    }
+    private var printings: String? { screen.printings }
     private var keyboardState = KeyboardState()
     /// Re-read on every appearance, so a change in the app shows next time.
     private var preferences = Preferences()
@@ -66,7 +60,7 @@ final class KeyboardViewController: UIInputViewController {
         buildHierarchy()
         wireActions()
         keyboardView.render(keyboardState.layout)
-        apply(mode: .building, animated: false)
+        render()
         applyPreferences()
         consumeOutcomes()
         restoreLastSearch()
@@ -149,7 +143,7 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func wireActions() {
-        searchBar.onTap = { [weak self] in self?.apply(mode: .typing, animated: true) }
+        searchBar.onTap = { [weak self] in self?.apply(.tapPill) }
         searchBar.onClear = { [weak self] in self?.clearQuery() }
         searchBar.onMoveCaret = { [weak self] offset in
             self?.query.moveCaret(to: offset)
@@ -217,27 +211,69 @@ final class KeyboardViewController: UIInputViewController {
         heightConstraint?.constant = preferredHeight
     }
 
-    // MARK: - Modes
+    // MARK: - Panes
 
-    private func apply(mode: Mode, animated: Bool) {
-        self.mode = mode
-        let allowed = hasFullAccess
-        let changes = {
-            self.buildingStack.isHidden = mode != .building || !allowed
-            self.browsingStack.isHidden = mode != .browsing
-            self.typingStack.isHidden = mode != .typing
-            self.searchBar.isEditing = mode == .typing
-            self.backButton.isHidden = mode != .browsing || self.printings == nil
-        }
-        if animated {
-            UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState], animations: changes)
-        } else {
-            changes()
-        }
-        if mode == .typing {
+    /// The one way anything under the bar changes: the event goes to the
+    /// screen state, the views are drawn from it. Internal for the tests.
+    func apply(_ event: KeyboardScreen.Event) {
+        let before = screen
+        screen.apply(event)
+        render()
+        // The keys open fresh: no shift left over from last time.
+        if screen.pane == .keys, before.pane != .keys {
             keyboardState = KeyboardState()
             keyboardView.render(keyboardState.layout)
         }
+    }
+
+    /// The view that holds a pane, for the tests to measure.
+    func paneView(_ pane: KeyboardScreen.Pane) -> UIView {
+        switch pane {
+        case .builder: buildingStack
+        case .grid: browsingStack
+        case .keys: typingStack
+        }
+    }
+
+    /// The column under the bar, for the tests to measure.
+    var contentColumn: UIView { column }
+
+    /// What the stacks are showing, for the tests: the screen says what
+    /// should be visible, the stack views say what is.
+    var visiblePanes: [KeyboardScreen.Pane] {
+        var panes: [KeyboardScreen.Pane] = []
+        if !buildingStack.isHidden { panes.append(.builder) }
+        if !browsingStack.isHidden { panes.append(.grid) }
+        if !typingStack.isHidden { panes.append(.keys) }
+        return panes
+    }
+
+    /// Draws the screen, with no transition: panes swap in place, as the
+    /// system keyboard's planes do. Until 2026-09-28 the swap animated
+    /// `isHidden` on the stack's arranged views, and that broke two ways: a
+    /// stack view grows a shown pane from zero height, so for a frame the
+    /// column held only the pill and the extension's self-sizing locked that
+    /// height in; and it counts hides asked for inside animation blocks, so
+    /// a pane hidden twice needed two shows before it appeared again. Search,
+    /// builder key, pill, return, or search then clear, left the keyboard as
+    /// the pill alone. `ScreenTransitionTests` watches the drawn heights and
+    /// the stacks for either coming back.
+    private func render() {
+        let pane = screen.visiblePane
+        UIView.performWithoutAnimation {
+            Self.setHidden(buildingStack, pane != .builder)
+            Self.setHidden(browsingStack, pane != .grid)
+            Self.setHidden(typingStack, pane != .keys)
+            searchBar.isEditing = screen.isEditing
+            backButton.isHidden = !screen.showsBack
+            resultsView.showsPrintings = screen.printings != nil
+            column.layoutIfNeeded()
+        }
+    }
+
+    /// Only touch `isHidden` when it changes; see `render()`.
+    private static func setHidden(_ view: UIView, _ hidden: Bool) {
+        if view.isHidden != hidden { view.isHidden = hidden }
     }
 
     private func refreshFullAccessState() {
@@ -245,11 +281,7 @@ final class KeyboardViewController: UIInputViewController {
         fullAccessNotice.isHidden = allowed
         searchBar.isUserInteractionEnabled = allowed
         resultsView.isHidden = !allowed
-        backButton.isHidden = !allowed || mode != .browsing || printings == nil
-        buildingStack.isHidden = !allowed || mode != .building
-        if !allowed, mode == .typing {
-            apply(mode: .browsing, animated: false)
-        }
+        apply(.fullAccess(allowed))
     }
 
     // MARK: - Key presses
@@ -273,7 +305,7 @@ final class KeyboardViewController: UIInputViewController {
         case .advanceToNextInputMode:
             advanceToNextInputMode()
         case .showBuilder:
-            apply(mode: .building, animated: true)
+            apply(.builderKey)
         }
     }
 
@@ -283,9 +315,7 @@ final class KeyboardViewController: UIInputViewController {
     private func add(_ clause: QueryClause) {
         query.appendTerm(clause.syntax, caretFromEnd: clause.caretFromEnd)
         queryChanged()
-        if clause.handsOffToKeyboard {
-            apply(mode: .typing, animated: true)
-        }
+        apply(.addClause(handsOffToKeyboard: clause.handsOffToKeyboard))
     }
 
     /// Keystrokes only edit the bar. Nothing is sent until the return key:
@@ -299,13 +329,16 @@ final class KeyboardViewController: UIInputViewController {
 
     private func commitSearch() {
         let current = query.text
-        printings = nil
-        guard !current.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let hasQuery = !current.trimmingCharacters(in: .whitespaces).isEmpty
+        guard hasQuery else {
+            // Nothing to run: the builder, as after any search with no results.
             SavedSearch.clear()
-            showEmptyState()
+            pager = nil
+            resultsView.show([])
+            apply(.submit(hasQuery: false))
             return
         }
-        apply(mode: .browsing, animated: true)
+        apply(.submit(hasQuery: true))
         SavedSearch.remember(query: current, printings: nil)
         runSearch(current)
     }
@@ -320,20 +353,17 @@ final class KeyboardViewController: UIInputViewController {
 
     /// The pill's clear button empties the bar and forgets the search; it
     /// never changes what is under the bar. The QWERTY stays up while typing
-    /// (the sliders key is the way to the builder), the builder stays while
+    /// (the filter key is the way to the builder), the builder stays while
     /// building, and from the grid it opens the QWERTY: an empty bar over
     /// results means a new search is coming.
     private func clearQuery() {
         query = QueryBuffer()
         queryChanged()
-        printings = nil
         gridBeforePrintings = nil
         pager = nil
         resultsView.show([])
         SavedSearch.clear()
-        if mode == .browsing {
-            apply(mode: .typing, animated: true)
-        }
+        apply(.clear)
         Task {
             await SavedResults.shared.clear()
             await pipeline.cancel()
@@ -359,8 +389,7 @@ final class KeyboardViewController: UIInputViewController {
         if printings == nil {
             gridBeforePrintings = (pager, resultsView.cards, resultsView.firstVisibleIndex ?? 0)
         }
-        printings = card.name
-        backButton.isHidden = false
+        apply(.holdCard(card.name))
         toast.show("All printings of \(card.name)")
         SavedSearch.remember(query: query.text, printings: card.name)
         Task { await pipeline.searchExact(name: card.name) }
@@ -370,8 +399,8 @@ final class KeyboardViewController: UIInputViewController {
     /// The grid kept from before comes back as it was; after a keyboard
     /// rebuild there is none, and the query is run again.
     private func leavePrintings() {
-        printings = nil
-        backButton.isHidden = true
+        let hasQuery = gridBeforePrintings != nil || !query.text.isEmpty
+        apply(.back(hasQuery: hasQuery))
         SavedSearch.remember(query: query.text, printings: nil)
         Task { await pipeline.drop() }
         if let kept = gridBeforePrintings {
@@ -382,11 +411,11 @@ final class KeyboardViewController: UIInputViewController {
             persistResults()
             return
         }
-        let current = query.text
-        if current.isEmpty {
-            showEmptyState()
+        if hasQuery {
+            runSearch(query.text)
         } else {
-            runSearch(current)
+            pager = nil
+            resultsView.show([])
         }
     }
 
@@ -416,8 +445,7 @@ final class KeyboardViewController: UIInputViewController {
         }
         query = QueryBuffer(saved.query)
         queryChanged()
-        printings = saved.printings
-        apply(mode: .browsing, animated: false)
+        apply(.restore(printings: saved.printings))
         resultsView.show(.loading)
         Task { [weak self] in
             let stored = await SavedResults.shared.load(id: saved.resultsID)
@@ -441,7 +469,7 @@ final class KeyboardViewController: UIInputViewController {
     private func showEmptyState() {
         pager = nil
         resultsView.show([])
-        apply(mode: .building, animated: mode == .typing)
+        apply(.nothingToShow)
     }
 
     // MARK: - Copying

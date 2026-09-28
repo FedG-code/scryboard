@@ -46,8 +46,13 @@ something it can show, not what it is.
   developer wanted it the same as the rest), so the row lines up with the
   letters. The space bar is unlabelled and the
   commit key is a return symbol, as on the system keyboard. A **builder key**
-  (sliders symbol) sits between `123` and the globe on every plane and
-  returns to the builder with the query kept; the space bar paid for it. In
+  sits between `123` and the globe on every plane and
+  returns to the builder with the query kept; the space bar paid for it. Its
+  glyph is `line.3.horizontal.decrease`, the "filter" lines iOS Mail
+  teaches (decided 2026-09-28; the sliders it showed before read as
+  settings on both platforms). Runners-up kept for a possible swap:
+  `rectangle.3.group` and `text.magnifyingglass`; the word "Filter" fits
+  the key too. Android will use `filter_list`. In
   this mode backspace edits the query, not the host text. The search bar is a
   custom-drawn view, never a `UITextField`: a text field inside an extension
   tries to summon a system keyboard that cannot appear. It has a real caret:
@@ -124,8 +129,33 @@ Last updated 2026-09-23, polish pass.
 - **TestFlight:** build 1.0 (1) uploaded 2026-09-21 and available; an internal
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
-- **Green:** 131 tests across 15 suites, no warnings, Swift 6 language mode,
-  `cd ScryboardKit && swift test`.
+- **Green:** 143 tests across 16 suites, no warnings, Swift 6 language mode,
+  `cd ScryboardKit && swift test`. Plus the extension's own
+  `ScryboardKeyboardTests` on the simulator (see "Screen transitions").
+- **Screen transitions (2026-09-28).** Two phone bugs collapsed the keyboard
+  to the pill alone: search, builder key, pill, return; and search, then
+  the pill's X. Cause: the panes under the bar (builder, grid, QWERTY) are
+  arranged subviews of one stack view, and their `isHidden` was animated.
+  A stack view grows a shown pane from zero height, so for a frame the
+  column held only the pill and the extension's self-sizing locked that
+  height in (the builder's buttons also showed through the keys on the
+  way); and it counts hides asked for inside animation blocks, so a pane
+  hidden twice needed two shows. Fixed three ways, all kept: the rules for
+  which pane shows are `KeyboardScreen` in the Kit (pure, tested by an
+  exhaustive walk of every sequence of four events); the controller draws
+  it through one `apply(_:)` with no transition at all, as the system
+  keyboard swaps planes (the developer did not want one; a cross-dissolve
+  of the column is the safe way to add one later, never an animated
+  `isHidden`), touching `isHidden` only when it changes; and
+  `ios/ScryboardKeyboardTests/ScreenTransitionTests.swift` runs the real
+  controller on a window through the named sequences, every pair of events
+  and a seeded random walk, checking the stacks against the screen and the
+  presentation layers for a pane drawn short. The test bundle compiles the
+  extension's sources (a test cannot link an app extension) and takes
+  about a minute:
+  `cd ios && xcodebuild test -project Scryboard.xcodeproj -scheme Scryboard -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:ScryboardKeyboardTests CODE_SIGNING_ALLOWED=NO`.
+  Without a window no animation runs and nothing reproduces; keep the
+  window.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
   1. ~~Key labels sat at the top of every key until pressed~~ — fixed: keys
@@ -191,7 +221,7 @@ Last updated 2026-09-23, polish pass.
   built in one pass from the mock-up without a device check, so the first
   phone session should look at: chip sizes and wrapping in the value pane,
   the 220 pt landscape height (the pane gets little room and scrolls), and
-  whether the sliders key on the QWERTY reads as "back to the builder".
+  whether the builder key on the QWERTY reads as "back to the builder".
   Rejected in the design round: clause tokens under the pill, tinted colour
   letters, an `is:` filter, a pill icon or a swipe as the way back; the step
   crumbs went too (2026-09-25). Numbers
@@ -210,6 +240,30 @@ Last updated 2026-09-23, polish pass.
   3. App icon: the developer is having one made externally (2026-09-22); the
      flat placeholder made in code stays until it arrives. Then the store
      listing.
+  4. **Native-looking keys.** Researched and decided 2026-09-28; mock-ups
+     with a tab per option, light and dark, typing, builder and grid modes,
+     plus every builder-key candidate in its slot:
+     `docs/prototypes/native-keys-ios.html` and `native-keys-android.html`;
+     measured values and sources in the Claude doc "Native keyboard styling
+     research". **iOS: the system replica, built 2026-09-28, phone check
+     pending.** `KeyStyle` in the extension holds the values open-source
+     replicas measured against the system keyboard (Apple publishes none):
+     letter keys white / #6B6B6B, function keys #ABB1BA / #474747, search
+     key system blue with white ink, 5 pt corners, a 1 pt unblurred shadow
+     at 30 % / 70 %, lowercase letters SF 25 pt light, other characters
+     22 pt regular, function words 16 pt, symbols 20 pt light; 42 pt keys
+     on a 54 pt pitch (6 pt gap, 12 pt row gap, shrinking together when
+     the height is short); pressing swaps the two greys, letter keys get a
+     pop-up bubble (`KeyPopupView`), every key plays the system click. The
+     builder's chips draw with the same `KeyStyle`. The root view stays
+     clear on purpose: iOS 26 draws its own rounded grey backdrop around
+     custom keyboards and painting one shows a band. Check on the phone:
+     letter size and weight against the system keyboard, the pop-up over
+     the top (syntax) row, dark-mode greys, and that the click plays.
+     **Android: Gboard default (option A in the mock-up), decided, not
+     built**; Material You was the runner-up. The Kotlin IME should copy
+     the neutral greys, one shared tone for every non-letter key, no
+     shadows, 8 dp corners, a blue pill enter key with the search glyph.
 - **iOS 26 facts learned the hard way:** a height constraint on the root view is
   ignored after the first layout, so the extension uses `allowsSelfSizing` with
   the height on its own content column. The system draws its own globe and
@@ -231,6 +285,7 @@ Last updated 2026-09-23, polish pass.
   | --- | --- |
   | Search bar routing | `SearchPipeline.search(_:)`, `.searchExact(name:)` (`.typed(_:)` is unused by the extension) |
   | Keyboard | `KeyboardLayout` (three planes, relative widths), `KeyboardState.applying(_:)`, `QueryBuffer` (text + caret, `appendTerm`) |
+  | Which pane shows | `KeyboardScreen` (builder / grid / keys, printings, Full Access; every event that moves between them) |
   | Query builder | `QueryFilter` (catalogue: operators, choices, steps), `QueryClause` (`syntax`, `sentence`, `caretFromEnd`), `ManaColour` |
   | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry, `snapshot` for restore) |
   | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |

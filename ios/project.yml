@@ -105,13 +105,42 @@ targets:
       - package: ScryboardKit
         product: ScryboardUI
 
+  # Runs the extension's real views on the simulator: the screen transitions
+  # that the Kit's pure `KeyboardScreen` cannot see break (stack views that
+  # stay hidden, panes drawn over each other). The extension's sources are
+  # compiled into the bundle, since a test bundle cannot link an app
+  # extension. Run:
+  #   xcodebuild test -project Scryboard.xcodeproj -scheme Scryboard \
+  #     -destination 'platform=iOS Simulator,name=iPhone 17' \
+  #     -only-testing:ScryboardKeyboardTests CODE_SIGNING_ALLOWED=NO
+  ScryboardKeyboardTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - ScryboardKeyboardTests
+      - path: ScryboardKeyboard
+        excludes: ["Info.plist", "PrivacyInfo.xcprivacy", "*.entitlements"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fedg.scryboard.keyboardtests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - package: ScryboardKit
+        product: ScryboardKit
+      - package: ScryboardKit
+        product: ScryboardUI
+
 schemes:
   Scryboard:
     build:
       targets:
         Scryboard: all
         ScryboardKeyboard: all
+        ScryboardKeyboardTests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets: [ScryboardKeyboardTests]
     archive:
       config: Release
