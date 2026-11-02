@@ -48,6 +48,15 @@ final class KeyboardViewController: UIInputViewController {
     /// Orders results writes; see `SavedResults.store`.
     private var resultsSequence = 0
     private var copyTask: Task<Void, Never>?
+    /// The printing chosen for each card from its printings view, shown in
+    /// every grid that card appears in from then on. The extension's own
+    /// Application Support, which the system does not purge: a choice is
+    /// the user's, not a cache.
+    private let preferredStore = PreferredPrintingsStore(
+        directory: (FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory).appendingPathComponent("Scryboard", isDirectory: true)
+    )
+    private var preferredPrintings = PreferredPrintings()
 
     // MARK: - Lifecycle
 
@@ -62,6 +71,7 @@ final class KeyboardViewController: UIInputViewController {
         keyboardView.render(keyboardState.layout)
         render()
         applyPreferences()
+        preferredPrintings = preferredStore.load()
         consumeOutcomes()
         restoreLastSearch()
     }
@@ -129,7 +139,10 @@ final class KeyboardViewController: UIInputViewController {
 
         NSLayoutConstraint.activate([
             height,
-            column.topAnchor.constraint(equalTo: view.topAnchor),
+            // The safe area, not the edge, at the top as well: iOS 26 wraps a
+            // custom keyboard in a Liquid Glass backdrop, and the pill drawn
+            // from the very top sat half under its rim (see `SearchBarView`).
+            column.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             column.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             column.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             column.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
@@ -171,6 +184,10 @@ final class KeyboardViewController: UIInputViewController {
 
         resultsView.onSelect = { [weak self] card in self?.copy(card) }
         resultsView.onLongPress = { [weak self] card in self?.showPrintings(of: card) }
+        // A printing dragged into the host is as chosen as one tapped.
+        resultsView.onDragEnded = { [weak self] card, accepted in
+            if accepted { self?.rememberPrinting(card) }
+        }
         resultsView.onPinchToSize = { [weak self] size in
             guard let self else { return }
             preferences.cardSize = size
@@ -184,7 +201,10 @@ final class KeyboardViewController: UIInputViewController {
                 guard let self, self.pager === pager else { return }
                 let loaded = await pager.cards
                 if loaded.count > self.resultsView.cards.count {
-                    self.resultsView.append(Array(loaded[self.resultsView.cards.count...]))
+                    // The whole list goes through the chosen printings, so
+                    // a card split across pages is judged on all of it.
+                    let shown = self.presented(loaded)
+                    self.resultsView.append(Array(shown[self.resultsView.cards.count...]))
                     self.persistResults()
                 }
             }
@@ -406,7 +426,9 @@ final class KeyboardViewController: UIInputViewController {
         if let kept = gridBeforePrintings {
             gridBeforePrintings = nil
             pager = kept.pager
-            resultsView.show(kept.cards, scrollTo: kept.firstVisible)
+            // Through the chosen printings again: the card just held may
+            // have been given a new one.
+            resultsView.show(presented(kept.cards), scrollTo: kept.firstVisible)
             SavedSearch.rememberPosition(kept.firstVisible)
             persistResults()
             return
@@ -452,7 +474,7 @@ final class KeyboardViewController: UIInputViewController {
             guard let self else { return }
             if let stored {
                 pager = ResultsPager(client: client, firstPage: stored)
-                resultsView.show(stored.data, scrollTo: saved.firstVisible)
+                resultsView.show(presented(stored.data), scrollTo: saved.firstVisible)
             } else if let name = saved.printings {
                 await pipeline.searchExact(name: name)
             } else {
@@ -472,11 +494,33 @@ final class KeyboardViewController: UIInputViewController {
         apply(.nothingToShow)
     }
 
+    // MARK: - Chosen printings
+
+    /// What the grid shows for a search: each card as the printing chosen
+    /// for it, if one was. The printings view is left alone; it lists the
+    /// choices. The pager and the saved results keep what Scryfall sent, so
+    /// a later choice shows on the next draw of the same grid.
+    private func presented(_ cards: [Card]) -> [Card] {
+        printings == nil ? preferredPrintings.apply(to: cards) : cards
+    }
+
+    /// A printing copied or dragged out of the printings view is the one
+    /// the user wants for that card: it is what every later grid shows.
+    /// Copying from a search grid chooses nothing; the grid already shows
+    /// the printing it would choose. Saved at once, since the host may tear
+    /// the keyboard down on the paste that follows.
+    private func rememberPrinting(_ card: Card) {
+        guard printings != nil else { return }
+        preferredPrintings.prefer(card)
+        try? preferredStore.save(preferredPrintings)
+    }
+
     // MARK: - Copying
 
     /// The product: full-size scan to the pasteboard, toast, let the bytes go.
     /// Or, by preference, the card's Scryfall page or its name as text.
     private func copy(_ card: Card) {
+        rememberPrinting(card)
         switch preferences.copyFormat {
         case .image:
             copyImage(of: card)
@@ -535,7 +579,7 @@ final class KeyboardViewController: UIInputViewController {
             resultsView.show(.loading)
         case .cards(let page, _):
             pager = ResultsPager(client: client, firstPage: page)
-            resultsView.show(page.data)
+            resultsView.show(presented(page.data))
             persistResults()
         case .empty(let query):
             resultsView.show(.message("No cards match “\(query)”."))

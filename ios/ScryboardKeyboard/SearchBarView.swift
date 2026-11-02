@@ -40,6 +40,18 @@ final class SearchBarView: UIView {
 
     private static let caretWidth: CGFloat = 2
 
+    /// Room between the top of the keyboard and the pill. iOS 26 wraps a
+    /// custom keyboard in a Liquid Glass backdrop and draws the glass's top
+    /// rim over the first points of the keyboard's content; with 6 pt here
+    /// the upper half of a typed query sat under that blur and could not be
+    /// read (reported after an iOS 26 point update, 2026-11-02). The column
+    /// now also starts at the safe area, which carries the inset when the
+    /// system reports one; this is the margin for when it does not. Earlier
+    /// systems draw no glass and keep the old spacing.
+    static let topInset: CGFloat = {
+        if #available(iOS 26, *) { 12 } else { 6 }
+    }()
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         build()
@@ -88,7 +100,7 @@ final class SearchBarView: UIView {
         pill.addSubview(row)
 
         NSLayoutConstraint.activate([
-            pill.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            pill.topAnchor.constraint(equalTo: topAnchor, constant: Self.topInset),
             pill.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
             pill.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             pill.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),

@@ -85,6 +85,24 @@ something it can show, not what it is.
   copied" / "Name copied".
 - **Hold a card → every printing of it**, newest first, in the same grid. That
   is the printing picker; tapping a suggested name does the same.
+- **The printing copied from the printings view becomes that card's
+  printing** (added 2026-11-02). A search shows one printing per card,
+  whichever Scryfall ranks first; once the user has held a card and copied
+  (or dragged out) a printing, every later grid swaps that card for the
+  chosen printing before it is drawn, so tapping it copies the chosen one.
+  Back from the printings view redraws the grid it kept through the new
+  choice, which is the only feedback: the toast still says "Copied".
+  Choosing again replaces the choice; there is no way to forget one yet
+  (would be a button in the container app, which means the App Group).
+  Keyed by `oracle_id`, name as the fallback, like the printings query.
+  The printings view itself is never swapped, and neither is any list that
+  holds several printings of one card (a typed `unique:prints` query):
+  there every printing is a choice. The pager and `SavedResults` keep what
+  Scryfall sent; the swap happens on every draw. `PreferredPrintings` in
+  the Kit (tested) does the keying and the swap; `PreferredPrintingsStore`
+  keeps it as one JSON file in the extension's own Application Support,
+  not caches, since a choice is not a cache. Copying from a search grid
+  chooses nothing.
 - `screenshots/` at the repo root is gitignored: keep local screenshots there,
   never in the repo. `docs/prototypes/` holds HTML mock-ups of UI options that
   were compared before a decision; thumbnails there hotlink Scryfall, never
@@ -130,7 +148,9 @@ Last updated 2026-09-23, polish pass.
   group exists with the developer in it, installing on their iPhone on
   2026-09-22. See "Distribution".
 - **Green:** 143 tests across 16 suites, no warnings, Swift 6 language mode,
-  `cd ScryboardKit && swift test`. Plus the extension's own
+  `cd ScryboardKit && swift test`. The seven `PreferredPrintingsTests`
+  added 2026-11-02 were written in a cloud session with no Swift toolchain
+  and have not been run yet; run the suite and the extension build first. Plus the extension's own
   `ScryboardKeyboardTests` on the simulator (see "Screen transitions").
 - **Screen transitions (2026-09-28).** Two phone bugs collapsed the keyboard
   to the pill alone: search, builder key, pill, return; and search, then
@@ -156,6 +176,20 @@ Last updated 2026-09-23, polish pass.
   `cd ios && xcodebuild test -project Scryboard.xcodeproj -scheme Scryboard -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:ScryboardKeyboardTests CODE_SIGNING_ALLOWED=NO`.
   Without a window no animation runs and nothing reproduces; keep the
   window.
+- **The pill under the glass (2026-11-02, phone check pending).** After an
+  iOS 26 point update the developer reported the pill illegible once it
+  holds a query: its upper half sits under the Liquid Glass blur the
+  system draws around custom keyboards. Not reproducible without a device
+  and not described anywhere Apple documents, so two changes, both kept
+  until one is shown to be enough: the content column now starts at the
+  view's safe-area top instead of its edge (the bottom already did), and
+  `SearchBarView.topInset` is 12 pt on iOS 26 instead of 6. If the pill is
+  still cut, raise that inset; if it is now too low, lower it. The
+  keyboard height is unchanged, so the pane under the bar lost 6 pt.
+  `ScreenTransitionTests` puts its window at the top of the screen, where
+  the safe area is the status bar, so the column there is shorter than its
+  height constraint asks (priority 999); the tests compare heights with
+  themselves, so that should not matter, but it has not been run since.
 - **Polish list from the first phone session (agreed 2026-09-22).** Work it in
   this order; details were settled with the developer, do not re-ask:
   1. ~~Key labels sat at the top of every key until pressed~~ — fixed: keys
@@ -290,6 +324,7 @@ Last updated 2026-09-23, polish pass.
   | Results grid | `ResultsPager` (prefetch, single-flight, dedupe, retry, `snapshot` for restore) |
   | Card images | `Card.frontImageURIs`, `imageURL(_:)`, `imageURL(_:face:)`; `ImageStore`, `ImageDownsampler` |
   | Printing picker | `searchExact(name:)` fills the grid with every printing |
+  | Chosen printings | `PreferredPrintings` (`key(for:)`, `prefer`, `apply(to:)`), `PreferredPrintingsStore` (one JSON file) |
   | Empty / error / offline | `SearchOutcome.empty` vs `.failure`, `TransportFailure` |
 
 ## Core decisions (settled — do not revisit without asking)
@@ -376,6 +411,7 @@ scryboard/
 │   │   ├── QueryClassifier.swift    (classify(_:))
 │   │   ├── SearchPipeline.swift     (debounce, cancel, SearchOutcome stream)
 │   │   ├── ResultsPager.swift       (grid paging: prefetch, dedupe, retry)
+│   │   ├── PreferredPrintings.swift (the printing chosen per card, and its file)
 │   │   ├── Keyboard/                (KeyboardLayout, KeyboardState, QueryBuffer — pure data)
 │   │   └── Models/                  (Card, CardFace, ImageURIs, Layout, SearchPage,
 │   │                                 SearchOptions, ScryfallError)
